@@ -1,4 +1,4 @@
-SNUPPAT v5.0.0
+SNUPPAT v1.0.0
 
 This is SNUPPAT, an S-process NUcleosynthesis Post-Processing code for ATon.
 This code was written by Andrés Yagüe López (and.yague@gmail.com) in collaboration
@@ -21,7 +21,7 @@ The input file must have a specific layout. A template is detailed below.
 100    # ExtraNum
 0.02   # Envelope overshooting parameter
 0.002  # PDCZ overshooting parameter
-0.018  # Desired Z
+0.018  # Metallicity
 5      # MixFreq
 5      # Minimum integDt
 0      # Minimum pulsIntegDt

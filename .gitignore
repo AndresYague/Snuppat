@@ -1,0 +1,34 @@
+# Ignore object files
+*.o
+*.mod
+
+# Ignore files in AtonOutput and input
+AtonOutput/*
+input/*
+
+# Unignore *.txt and *.py files in AtonOutput and input
+!AtonOutput/*.txt
+!AtonOutput/*.py
+!input/*.txt
+!input/*.py
+
+# Ignore executable
+snuppat
+
+# Ignore input files
+*.in
+
+# Ignore tags
+tags
+
+# Ignore .dat, .mp4, .bak and .png files
+*.dat
+*.mp4
+*.bak
+*.png
+
+# Ignore data
+data/*
+
+# Ignore callgrind output
+callgrind*
