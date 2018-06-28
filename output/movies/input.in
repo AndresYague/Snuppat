@@ -1,0 +1,8 @@
+TEST    # Output appendix name
+120     # Starting age in kyr
+0.800   # Low x-axis bound
+0.830   # High x-axis bound
+1e-10   # Low y-axis bound
+1.00    # High y-axis bound
+n       # Create video (y/n)
+n       # Erase snapshots (y/n)

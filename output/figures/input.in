@@ -1,0 +1,4 @@
+surface # Where or how to read the data (surface|intershell|temperature) 
+fe      # Which reference to use (p1|fe)
+TEST    # Output appendix name
+n       # Perform average smoothing (y|n)
