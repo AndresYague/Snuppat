@@ -9,8 +9,8 @@ def main():
         return 1
     
     # Read input file
-    if os.path.isfile("inputFinalGraph.in"):
-        with open("inputFinalGraph.in", "r") as fread:
+    if os.path.isfile("finalGraph.in"):
+        with open("finalGraph.in", "r") as fread:
             lstyles = fread.readline().strip().split()
             
             labs = []
@@ -81,12 +81,7 @@ def main():
     for dens in numDens:
         dic = {}
         
-        # First add the values we are not tracking in the AGB
-        for key in solarValues:
-            if key in atomicNum:
-                dic[key] = solarValues[key]
-        
-        # Now add the rest
+        # Add the values for each element
         for ii in range(len(atomicNum)):
             key = atomicNum[ii]
             dic[key] = dic.get(key, 0) + dens[ii]

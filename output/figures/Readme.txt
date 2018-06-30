@@ -1,6 +1,14 @@
-Example of an input file for create_graphic.py
----------------------------------------------------------------------------
-intershell # Where or how to read the data (surface|intershell|maximum)
-fe         # Which reference to use (p1|any other element)
-TEST       # Output appendix name
-n          # Perform average smoothing (y|n)
+# Structure of finalGraph.in:
+- In the first line write linestyles separated by spaces
+- From second to last line write the lines
+
+Example for 6 models:
+#---------------------------------------------------------
+k- b- m- r- g- y-
+$\omega = 0.08$ Bounded
+$\omega = 0.08$ Boundless
+$\omega = 0.10$ Bounded
+$\omega = 0.10$ Boundless
+$\omega = 0.12$ Boundless
+$\omega = 0.14$ Boundless
+#---------------------------------------------------------

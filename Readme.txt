@@ -1,4 +1,4 @@
-SNUPPAT v1.0.0
+SNUPPAT v1.0.0 Release
 
 This is SNUPPAT, an S-process NUcleosynthesis Post-Processing code for ATon.
 This code was written by Andrés Yagüe López (and.yague@gmail.com) in collaboration
@@ -41,6 +41,8 @@ convective envelope.
 
 -PDCZ overshooting parameter: Overshooting parameter at the bottom of the
 PDCZ.
+
+-Metallicity: Desired metallicity
 
 -MixFreq: Divide integration timestep in mixFreq steps to perform mixing (both
 convective and extramixing)

@@ -85,7 +85,7 @@ class ReadObject(object):
             line2 = None
             age = 10**(nextModel[2] - 6) - self.firstAge
             mass = []; temp = []; rad = []; p1 = []; he4 = []
-            c13 = []; n14 = []; showSpecLst = []
+            c13 = []; n14 = []; showSpecLst = []; fe = []
             for line in nextModel[3]:
                 
                 # If we don't have a second line, continue
@@ -106,11 +106,20 @@ class ReadObject(object):
                 n14.append((line[self.speciesDict["n14"][0]] +
                     line2[self.speciesDict["n14"][0]])*0.5*14)
                 
+                # Store iron
+                val = 0
+                for indx in self.speciesDict["fe"]:
+                    val += (line[indx] + line2[indx])*0.5
+                    fe.append(val)
+                
                 ii = 0
                 for species in self.showSpecies:
                     val = 0
                     for indx in self.speciesDict[species]:
                         val += (line[indx] + line2[indx])*0.5
+                    
+                    # Normalize with iron
+                    val /= fe[-1]
                     
                     if len(showSpecLst) < len(self.showSpecies):
                         showSpecLst.append([val])
@@ -347,6 +356,13 @@ def getReferenceValues(showSpecies, solarVals):
             value = float(lnlst[1])
             
             di[name] = value
+    
+    # Get iron density
+    ironDens = di["fe"]
+    
+    # Normalize every value with iron
+    for key in di:
+        di[key] /= ironDens
     
     refs = []
     for name in showSpecies:
