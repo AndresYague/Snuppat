@@ -358,7 +358,7 @@ SUBROUTINE createRates(crosLst, dens, kk, dd, eIndices)
         ! Input the rate.
         DO ii = 1, cCross%targnum
             iiindx = cCross%targindx(ii)
-            dd(iiindx) = dd(iiindx) + rate*invDens(iiindx)
+            dd(iiindx) = dd(iiindx) + rate
         END DO
         DO ii = 1, cCross%prodnum
             iiindx = cCross%prodindx(ii)
@@ -371,6 +371,8 @@ SUBROUTINE createRates(crosLst, dens, kk, dd, eIndices)
             EXIT
         END IF
     END DO
+    
+    dd = dd*invDens
     
 END SUBROUTINE createRates
 

@@ -41,10 +41,11 @@ class SpeciesDict(dict):
 class ReadObject(object):
     '''Object to read TDU data from simulations'''
     
-    def __init__(self, inptFile, speciesDict, showSpecies):
+    def __init__(self, inptFile, speciesDict, massDict, showSpecies):
         
         self.inptFile = open(inptFile, "r")
         self.speciesDict = speciesDict
+        self.massDict = massDict
         self.showSpecies = showSpecies
         self.nTDU = 0
         self.lastModels = None
@@ -98,25 +99,29 @@ class ReadObject(object):
                 temp.append((line[1] + line2[1])*5e8)
                 rad.append((line[3] + line2[3])*0.5)
                 p1.append((line[self.speciesDict["p1"][0]] +
-                    line2[self.speciesDict["p1"][0]])*0.5)
+                    line2[self.speciesDict["p1"][0]])*0.5*self.massDict["p1"][0])
                 he4.append((line[self.speciesDict["he4"][0]] +
-                    line2[self.speciesDict["he4"][0]])*0.5*4)
+                    line2[self.speciesDict["he4"][0]])*0.5*self.massDict["he4"][0])
                 c13.append((line[self.speciesDict["c13"][0]] +
-                    line2[self.speciesDict["c13"][0]])*0.5*13)
+                    line2[self.speciesDict["c13"][0]])*0.5*self.massDict["c13"][0])
                 n14.append((line[self.speciesDict["n14"][0]] +
-                    line2[self.speciesDict["n14"][0]])*0.5*14)
+                    line2[self.speciesDict["n14"][0]])*0.5*self.massDict["n14"][0])
                 
                 # Store iron
                 val = 0
-                for indx in self.speciesDict["fe"]:
-                    val += (line[indx] + line2[indx])*0.5
+                liIndx = self.speciesDict["fe"]
+                liMass = self.massDict["fe"]
+                for ii in range(len(liIndx)):
+                    val += (line[liIndx[ii]] + line2[liIndx[ii]])*0.5*liMass[ii]
                     fe.append(val)
                 
                 ii = 0
                 for species in self.showSpecies:
                     val = 0
-                    for indx in self.speciesDict[species]:
-                        val += (line[indx] + line2[indx])*0.5
+                    liIndx = self.speciesDict[species]
+                    liMass = self.massDict[species]
+                    for jj in range(len(liIndx)):
+                        val += (line[liIndx[jj]] + line2[liIndx[jj]])*0.5*liMass[jj]
                     
                     # Normalize with iron
                     val /= fe[-1]
@@ -306,6 +311,7 @@ def createSpeciesRelation(species):
     # Open and read
     correction = 4
     speciesDict = SpeciesDict()
+    massDict = SpeciesDict()
     with open(species, "r") as fread:
         i = 0
         for line in fread:
@@ -314,11 +320,12 @@ def createSpeciesRelation(species):
             # Add specie
             name = lnlst[1] + lnlst[0]
             speciesDict[name] = i + correction
+            massDict[name] = float(lnlst[0])
             
             # Advance index
             i += 1
     
-    return speciesDict
+    return speciesDict, massDict
 
 def quadr(xx, yy, yy2 = None, low = None, high = None):
     '''Quadrature method'''
@@ -352,10 +359,10 @@ def getReferenceValues(showSpecies, solarVals):
             lnlst = line.split()
             
             name = lnlst[0]
-            zz = int(lnlst[2])
-            value = float(lnlst[1])
+            mass = int(lnlst[2])
+            value = float(lnlst[1])*mass
             
-            di[name] = value
+            di[name] = di.get(name, 0) + value
     
     # Get iron density
     ironDens = di["fe"]
@@ -458,7 +465,7 @@ def main():
     # Species info
     species = os.path.join("..", "..", "data", "species.dat")
     solarVals = os.path.join("..", "..", "data", "solarVals.dat")
-    speciesDict = createSpeciesRelation(species)
+    speciesDict, massDict = createSpeciesRelation(species)
     
     showSpecies = ["rb", "sr", "ba", "pb"]
     
@@ -466,7 +473,7 @@ def main():
     showSpecies += ["sr", "y", "zr", "ba", "la", "ce"]
     
     # Create data object
-    data = ReadObject(inptFile, speciesDict, showSpecies)
+    data = ReadObject(inptFile, speciesDict, massDict, showSpecies)
     s = "TDU # | Age range | Max T9 | Lambda | Dredged mass | Core mass | "
     s += "Envelope mass | Dredged ratio | Total dredged | "
     s += "Effective c13 (width, height)"

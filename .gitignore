@@ -21,11 +21,14 @@ snuppat
 # Ignore tags
 tags
 
-# Ignore .dat, .mp4, .bak and .png files
+# Ignore several files
 *.dat
+*.datYields
+*.TAB
 *.mp4
 *.bak
 *.png
+*.tar.gz
 
 # Ignore data
 data/*

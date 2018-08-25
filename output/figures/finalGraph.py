@@ -20,30 +20,38 @@ def main():
     title = sys.argv[1]
     lowZ = 27 # Lowest z value to represent
     
+    # Read "species.dat" and store all the values in lists
+    species = "../../data/species.dat"
+    atomicNum = []; atomicMass = []; isotNames = []; namesZ = {}
+    with open(species, "r") as fread:
+        for line in fread:
+            lnlst = line.split()
+            
+            # And names with atomic number
+            if lnlst[1] == "d" or lnlst[2] == "0":
+                lnlst[1] = "h"
+            
+            # Add isotopic name
+            isotNames.append(lnlst[1] + lnlst[0])
+            
+            # Now relate positions with atomic numbers, atomic masses, and names
+            zNum = int(lnlst[0]) - int(lnlst[2])
+            
+            atomicNum.append(zNum)
+            atomicMass.append(int(lnlst[0]))
+            namesZ[lnlst[1]] = zNum
+    
     # Read all initial solar values
     solar = "../../data/solarVals.dat"
     solarValues = {}
     with open(solar, "r") as fread:
         for line in fread:
             lnlst = line.split()
+            isotName = lnlst[0] + lnlst[2]
             
-            # Add value per atomic number
-            key = int(lnlst[2]); val = float(lnlst[1])
-            solarValues[key] = val
-    
-    # Read "species.dat" and store all the values in lists
-    species = "../../data/species.dat"
-    names = []; atomicNum = []; agbSpecies = []
-    with open(species, "r") as fread:
-        for line in fread:
-            lnlst = line.split()
-            names.append(lnlst[1])
-            
-            # Put specific isotope in list (name + mass)
-            agbSpecies.append(lnlst[1] + lnlst[0])
-            
-            # Now relate positions with atomic numbers
-            atomicNum.append(int(lnlst[0]) - int(lnlst[2]))
+            # Add mass fraction value per atomic number
+            key = namesZ[lnlst[0]]; val = float(lnlst[1])*float(lnlst[2])
+            solarValues[key] = solarValues.get(key, 0) + val
     
     # Go file by file
     numDens = []
@@ -80,20 +88,16 @@ def main():
     agbValues = []
     for dens in numDens:
         dic = {}
-        
+     
         # Add the values for each element
         for ii in range(len(atomicNum)):
             key = atomicNum[ii]
-            dic[key] = dic.get(key, 0) + dens[ii]
+            dic[key] = dic.get(key, 0) + dens[ii]*atomicMass[ii]
         
         agbValues.append(dic)
     
     # Now identify iron:
-    ironNumber = None
-    for ii in range(len(atomicNum)):
-        if names[ii].lower() == "fe":
-            ironNumber = atomicNum[ii]
-            break
+    ironNumber = namesZ["fe"]
     
     # Now divide every element by iron
     for dens in agbValues:
@@ -123,6 +127,17 @@ def main():
     
     # Create xaxis:
     xx = [x for x in zList if x >= lowZ]
+    
+    # Print final values
+    print "Numerical values per file: "
+    for ii in range(len(sys.argv[2:])):
+        print "# {}".format(sys.argv[ii + 2])
+        print ""
+        
+        for jj in range(len(xx)):
+            print xx[jj], finalValues[ii][jj]
+        
+        print ""
     
     # From zList create contIndx. This list contains a number of
     # tuples with the first and last index of any contiguous sequence
@@ -179,7 +194,10 @@ def main():
     namAtm = {"Co":27, "Ge":32, "Se":34, "Kr":36, "Sr":38, "Zr":40,
             "Mo":42, "Pd":46, "Cd":48, "Sn":50, "Te":52, "Ba":56,
             "Ce":58, "Nd":60, "Sm":62, "Gd":64, "Dy":66, "Er":68,
-            "Yb":70, "Hf":72, "W":74, "Os":76, "Hg":80, "Pb":82}
+            "Yb":70, "Hf":72, "W":74, "Os":76, "Hg":80, "Pb":82,
+            "Rb":37, "Cs":55}
+    
+    rNamAtm = ["Rb", "Cs"]
     
     for name in namAtm:
         yVal = 0
@@ -189,7 +207,11 @@ def main():
                 break
         
         plt.text(namAtm[name] - 0.5, yVal*1.01, name, size = 14)
-        plt.plot(namAtm[name], yVal, "ko")
+        
+        if name in rNamAtm:
+            plt.plot(namAtm[name], yVal, "ro")
+        else:
+            plt.plot(namAtm[name], yVal, "ko")
     
     plt.legend(loc=0, ncol = 2)
     plt.show()

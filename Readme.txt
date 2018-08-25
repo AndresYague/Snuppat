@@ -8,7 +8,7 @@ To compile the code a Makefile is included with the source, although it may be
 compiled by hand. Also, a bash script was created to run the code containing a
 rudimentary warning.
 
-The "data" directory referred by some parts of the code was too big to upload
+The "data" directory referred by some parts of the code is too big to upload
 to GitHub. It contains the network and reaction lists. For further
 information, please contact the author.
 
@@ -34,7 +34,7 @@ The meaning of each row is:
 
 -Yscale: The threshold dividing a meaningful quantity from zero.
 
--ExtraNum: Number of extra c13pocket shells
+-ExtraNum: Number of extra c13pocket shells.
 
 -Envelope overshooting parameter: Overshooting parameter at the bottom of the
 convective envelope.
@@ -42,10 +42,10 @@ convective envelope.
 -PDCZ overshooting parameter: Overshooting parameter at the bottom of the
 PDCZ.
 
--Metallicity: Desired metallicity
+-Metallicity: Desired metallicity.
 
 -MixFreq: Divide integration timestep in mixFreq steps to perform mixing (both
-convective and extramixing)
+convective and extramixing).
 
 -Minimum integDt: The minium dt in years to consider an integration. It may be
 higher if the model or sum of models have inherently a greater timestep but
