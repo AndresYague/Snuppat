@@ -30,7 +30,7 @@ MODULE readvars_mod
     CHARACTER(20), PARAMETER::physics = "input/physics.dat"
     CHARACTER(20), PARAMETER::chemistry = "input/chemistry.dat"
     CHARACTER(20), PARAMETER::output = "output/processed.dat"
-    CHARACTER(20), PARAMETER::solar = "data/fmt_abund.dat"
+    CHARACTER(30), PARAMETER::solar = "data/initial_compAGS2009.dat"
     CHARACTER(20), PARAMETER::contChem = "input/contChem.dat"
     
     ! Data reading utilities:

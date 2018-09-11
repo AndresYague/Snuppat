@@ -36,6 +36,7 @@ SUBROUTINE loadNetwork(highTempReacts, lowTempReacts)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     ! This reads the files with the reactions and makes the linked list.
+    NULLIFY(last)
     DO kk = 1, SIZE(filenames) + SIZE(lowTempFiles)
         IF ((kk - SIZE(filenames)).LT.1) THEN
             kkindx = kk
