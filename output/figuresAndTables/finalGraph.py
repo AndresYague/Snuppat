@@ -22,7 +22,7 @@ def main():
     
     # Read "species.dat" and store all the values in lists
     species = "../../data/species.dat"
-    atomicNum = []; atomicMass = []; isotNames = []; namesZ = {}
+    atomicNum = []; atomicMass = []; namesZ = {}
     with open(species, "r") as fread:
         for line in fread:
             lnlst = line.split()
@@ -30,9 +30,6 @@ def main():
             # And names with atomic number
             if lnlst[1] == "d" or lnlst[2] == "0":
                 lnlst[1] = "h"
-            
-            # Add isotopic name
-            isotNames.append(lnlst[1] + lnlst[0])
             
             # Now relate positions with atomic numbers, atomic masses, and names
             zNum = int(lnlst[0]) - int(lnlst[2])
