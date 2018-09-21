@@ -16,16 +16,17 @@ In order to run the code, an input file named "parameters.in" must be written.
 The input file must have a specific layout. A template is detailed below.
 
 -------------------TEMPLATE  BEGIN-----------------
-1.D-5  # Relative accuracy
-1.D-24 # Yscale
-100    # ExtraNum
-0.02   # Envelope overshooting parameter
-0.002  # PDCZ overshooting parameter
-0.018  # Metallicity
-5      # MixFreq
-5      # Minimum integDt
-0      # Minimum pulsIntegDt
-40     # Write frequency
+1.D-5      # Relative accuracy
+1.D-24     # Yscale
+100        # ExtraNum
+0.10       # Envelope overshooting parameter
+0.002      # PDCZ overshooting parameter
+advective  # overshooting mode (advective | diffusive)
+0.018      # Metallicity
+5          # MixFreq
+5          # Minimum integDt
+0          # Minimum pulsIntegDt
+40         # Write frequency
 --------------------TEMPLATE  END------------------
 
 The meaning of each row is:
@@ -41,6 +42,8 @@ convective envelope.
 
 -PDCZ overshooting parameter: Overshooting parameter at the bottom of the
 PDCZ.
+
+-Overshooting mode: Select between advective and diffusive overshooting
 
 -Metallicity: Desired metallicity.
 

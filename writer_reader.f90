@@ -247,7 +247,7 @@ SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
     ! In physics file, read first line and allocate model
     isPhysMod = readPhysMod(model, mass, age, modelNum, isPulse, inModNum, siz)
     IF (.NOT.isPhysMod) THEN
-        PRINT*, "No phyisical information"
+        PRINT*, "No physical information"
         STOP
     END IF
     

@@ -35,6 +35,7 @@ PROGRAM snuppat
     INTEGER::writeFreq, nSteps, p1indx, he4indx, c13indx, n14indx, mixFreq
     INTEGER::firstIntegShell, lastIntegShell, calcProc, extraNum, firstOv
     INTEGER::nLiteShell
+    CHARACTER(20)::ovMode
     LOGICAL::integThis, isNext, isLowTemp, isMaster, isPulse, performDt, cont
     LOGICAL::lastConv
     
@@ -55,12 +56,20 @@ PROGRAM snuppat
     READ(uni, *) extraNum
     READ(uni, *) ovParam
     READ(uni, *) ovPDCZParam
+    READ(uni, *) ovMode
     READ(uni, *) metallicity
     READ(uni, *) mixFreq
     READ(uni, *) minIntDt
     READ(uni, *) minPulsIntDt
     READ(uni, *) writeFreq
     CLOSE(UNIT = uni)
+    
+    ! Check that ovMode has one of the two correct values
+    IF ((ovMode.NE."advective").AND.(ovMode.NE."diffusive")) THEN
+        PRINT*, "ovMode should be either 'advective' or 'diffusive'"
+        CALL MPI_FINALIZE(ierror)
+        STOP
+    END IF
     
     ! Open list with extra information
     OPEN(UNIT = uni, FILE = "data/"//filenames(1)//".lst")

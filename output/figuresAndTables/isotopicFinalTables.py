@@ -58,6 +58,7 @@ def main():
         massFrac = [(x + y)*0.5*z for (x, y, z) in
                     zip(prevline[4:], newline[4:], atomicMass)]
         
+        print ""
         print "# {}".format(archivo)
         print ""
         
