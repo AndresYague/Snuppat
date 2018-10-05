@@ -32,8 +32,8 @@ MODULE structures_mod
     
     TYPE INTERSHELL
         TYPE (INTERSHELL), POINTER::convShell
-        DOUBLE PRECISION::temp, rho, mass0, mass1, rad0, rad1, hp0, hp1, pres0
-        DOUBLE PRECISION::pres1, vel0, vel1, radiat0, radiat1
+        DOUBLE PRECISION::temp, rho, rho0, rho1, mass0, mass1, rad0, rad1, hp0
+        DOUBLE PRECISION::hp1, pres0, pres1, vel0, vel1, radiat0, radiat1
         DOUBLE PRECISION, ALLOCATABLE::dens(:)
         INTEGER::ii0, ii1
         LOGICAL::isConvective = .FALSE.

@@ -66,7 +66,9 @@ PROGRAM snuppat
     
     ! Check that ovMode has one of the two correct values
     IF ((ovMode.NE."advective").AND.(ovMode.NE."diffusive")) THEN
-        PRINT*, "ovMode should be either 'advective' or 'diffusive'"
+        IF (isMaster) THEN
+            PRINT*, "ovMode should be either 'advective' or 'diffusive'"
+        END IF
         CALL MPI_FINALIZE(ierror)
         STOP
     END IF
@@ -256,8 +258,15 @@ PROGRAM snuppat
             
             ! Calculate overshooting lower limit
             IF ((ovParam.GT.0.D0).OR.(ovPDCZParam.GT.0.D0)) THEN
-                CALL ovLimit(liteShell, firstOv, p1indx, he4indx, ovParam, &
-                             ovPDCZParam)
+                
+                IF (ovMode.EQ."advective") THEN
+                    CALL advOvLimit(liteShell, firstOv, p1indx, he4indx, &
+                                    ovParam, ovPDCZParam)
+                ELSE IF (ovMode.EQ."diffusive") THEN
+                    CALL diffOvLimit(liteShell, firstOv, p1indx, he4indx, &
+                                    ovParam, ovPDCZParam)
+                END IF
+                
                 IF (firstOv.LT.firstIntegShell) firstIntegShell = firstOv
             ELSE
                 firstOv = firstIntegShell
@@ -293,10 +302,10 @@ PROGRAM snuppat
             intDt = intDt*sInYear
             
             ! Integrate proper
-            CALL diffusiveIntegration(intDt, liteShell, nLiteShell, &
-                        shellReacts, ntwkMass, eIndices, p1indx, he4indx, &
-                        ovParam, ovPDCZParam, mixFreq, eps, siz, yscale, &
-                        firstOv, firstIntegShell, lastIntegShell, nProc, rank)
+            CALL mixedIntegration(intDt, liteShell, nLiteShell, shellReacts, &
+                        ntwkMass, eIndices, p1indx, he4indx, ovParam, &
+                        ovPDCZParam, mixFreq, eps, siz, yscale, firstOv, &
+                        firstIntegShell, lastIntegShell, ovMode, nProc, rank)
             
             ! Reset intT1:
             intT1 = t2

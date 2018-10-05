@@ -1,4 +1,4 @@
-SNUPPAT v1.0.0 Release
+SNUPPAT v1.1.0
 
 This is SNUPPAT, an S-process NUcleosynthesis Post-Processing code for ATon.
 This code was written by Andrés Yagüe López (and.yague@gmail.com) in collaboration

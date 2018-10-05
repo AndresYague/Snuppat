@@ -13,17 +13,25 @@ def getMassFracs(abunds, specs):
 def main():
     '''Program to extract yields from the SNUPPAT models'''
     
-    # First check number of arguments
+    # Check input
     if len(sys.argv) < 2:
-        print "Usage: python {} <input file>".format(sys.argv[0])
+        print "Usage: python {}".format(sys.argv[0]),
+        print "<input file> [mode = isotopes]"
         return 1
         
     else:
         outFil = sys.argv[1]
     
+    mode = "elements" # Default mode
+    if len(sys.argv) >= 3:
+        mode = sys.argv[2]
+        if mode != "isotopes" and mode != "elements":
+            print 'The mode must be either "isotopes" or "elements"'
+            return 1
+    
     # Species dictionary
     specFile = os.path.join("..", "..", "data", "species.dat")
-    specs = {}; zzNam = {}; ii = 0
+    specs = {}; idNam = {}; idZZ = {}; ii = 0
     with open(specFile) as fread:
         for line in fread:
             lnlst = line.split()
@@ -34,8 +42,17 @@ def main():
             if zz == 1:
                 nam = "h"
             
-            specs[ii] = (nam, zz, mass)
-            zzNam[zz] = nam
+            if mode == "elements":
+                idNam[zz] = nam
+                idZZ[zz] = zz
+                specs[ii] = (nam, zz, mass)
+                
+            elif mode == "isotopes":
+                nam += lnlst[0]
+                idNam[ii] = nam
+                idZZ[ii] = zz
+                specs[ii] = (nam, ii, mass)
+            
             ii += 1
     
     firstAge = None; prevMass = None
@@ -109,8 +126,13 @@ def main():
                 dt = age - firstAge
                 if dt > 0:
                     print "# Mass: {} MSun. Time: {} ky".format(totMass, dt)
-                    for ii in range(len(zzNam)):
-                        print "{:2} {:2} {:11.4E}".format(zzNam[ii], ii, yields[ii])
+                    for ii in range(len(idNam)):
+                        if mode == "elements":
+                            formStr = "{:2} {:2} {:11.4E}"
+                        elif mode == "isotopes":
+                            formStr = "{:5} {:2} {:11.4E}"
+                        
+                        print formStr.format(idNam[ii], idZZ[ii], yields[ii])
                     
                     print
             

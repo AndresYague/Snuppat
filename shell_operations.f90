@@ -125,6 +125,9 @@ SUBROUTINE storeShells(model, intShell, totShell, siz)
         intShell(ii)%temp = (model(ii + 1)%temp + model(ii)%temp)*0.5D0
         intShell(ii)%rho = (model(ii + 1)%rho + model(ii)%rho)*0.5D0
         
+        intShell(ii)%rho0 = model(ii)%rho
+        intShell(ii)%rho1 = model(ii + 1)%rho
+        
         intShell(ii)%mass0 = model(ii)%mass
         intShell(ii)%mass1 = model(ii + 1)%mass
         
@@ -314,7 +317,7 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
     TYPE (INTERSHELL), POINTER::storeIntShell(:)
     DOUBLE PRECISION, ALLOCATABLE::valDens(:, :), valMassDens(:), mass(:)
     DOUBLE PRECISION, ALLOCATABLE::interArr(:, :), interDens(:, :)
-    DOUBLE PRECISION::valArray(12, totShell - 1), valMass(totShell - 1)
+    DOUBLE PRECISION::valArray(14, totShell - 1), valMass(totShell - 1)
     DOUBLE PRECISION::dMass, holdMass, firstMass, lastMass, c13ShellVal, c13Lim
     DOUBLE PRECISION::p1Envelp, envFact, n14ShellVal
     INTEGER::ii, first, last, jj, kk, frstMin, lstMin, c13Mass, n14Mass
@@ -327,7 +330,7 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
     c13Mass = 13; n14Mass = 14
     
     ! Carbon limit
-    c13Lim = 5.D-4
+    c13Lim = 1.D-3
     
     ! Envelope factor (multiply evenlope hydrogen abundance by this
     ! to define threshold)
@@ -572,16 +575,18 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
             ! Physical values
             valArray(1, ii) = intShell(ii)%temp
             valArray(2, ii) = intShell(ii)%rho
-            valArray(3, ii) = intShell(ii)%hp0
-            valArray(4, ii) = intShell(ii)%hp1
-            valArray(5, ii) = intShell(ii)%pres0
-            valArray(6, ii) = intShell(ii)%pres1
-            valArray(7, ii) = intShell(ii)%vel0
-            valArray(8, ii) = intShell(ii)%vel1
-            valArray(9, ii) = intShell(ii)%rad0
-            valArray(10, ii) = intShell(ii)%rad1
-            valArray(11, ii) = intShell(ii)%radiat0
-            valArray(12, ii) = intShell(ii)%radiat1
+            valArray(3, ii) = intShell(ii)%rho0
+            valArray(4, ii) = intShell(ii)%rho1
+            valArray(5, ii) = intShell(ii)%hp0
+            valArray(6, ii) = intShell(ii)%hp1
+            valArray(7, ii) = intShell(ii)%pres0
+            valArray(8, ii) = intShell(ii)%pres1
+            valArray(9, ii) = intShell(ii)%vel0
+            valArray(10, ii) = intShell(ii)%vel1
+            valArray(11, ii) = intShell(ii)%rad0
+            valArray(12, ii) = intShell(ii)%rad1
+            valArray(13, ii) = intShell(ii)%radiat0
+            valArray(14, ii) = intShell(ii)%radiat1
         END DO
         
         ! Create extra shells
@@ -591,7 +596,8 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
         END DO
         
         ! Allocate needed arrays
-        ALLOCATE(interArr(12, cpExNum), interDens(siz, cpExNum), mass(cpExNum))
+        ALLOCATE(interArr(SIZE(valArray(:, 1)), cpExNum))
+        ALLOCATE(interDens(siz, cpExNum), mass(cpExNum))
         
         ! Mass array
         dMass = (intShell(last)%mass1 - intShell(first)%mass0)/cpExNum
@@ -621,16 +627,18 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
             
             exShls(ii)%temp = interArr(1, ii)
             exShls(ii)%rho = interArr(2, ii)
-            exShls(ii)%hp0 = interArr(3, ii)
-            exShls(ii)%hp1 = interArr(4, ii)
-            exShls(ii)%pres0 = interArr(5, ii)
-            exShls(ii)%pres1 = interArr(6, ii)
-            exShls(ii)%vel0 = interArr(7, ii)
-            exShls(ii)%vel1 = interArr(8, ii)
-            exShls(ii)%rad0 = interArr(9, ii)
-            exShls(ii)%rad1 = interArr(10, ii)
-            exShls(ii)%radiat0 = interArr(11, ii)
-            exShls(ii)%radiat1 = interArr(12, ii)
+            exShls(ii)%rho0 = interArr(3, ii)
+            exShls(ii)%rho1 = interArr(4, ii)
+            exShls(ii)%hp0 = interArr(5, ii)
+            exShls(ii)%hp1 = interArr(6, ii)
+            exShls(ii)%pres0 = interArr(7, ii)
+            exShls(ii)%pres1 = interArr(8, ii)
+            exShls(ii)%vel0 = interArr(9, ii)
+            exShls(ii)%vel1 = interArr(10, ii)
+            exShls(ii)%rad0 = interArr(11, ii)
+            exShls(ii)%rad1 = interArr(12, ii)
+            exShls(ii)%radiat0 = interArr(13, ii)
+            exShls(ii)%radiat1 = interArr(14, ii)
             
             exShls(ii)%dens = interDens(:, ii)
         END DO

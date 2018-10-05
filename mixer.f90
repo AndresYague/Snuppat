@@ -52,6 +52,7 @@ SUBROUTINE storeConvection(intShell, totShell, siz)
                 commShell%ii0 = ii
                 commShell%mass0 = intShell(ii)%mass0
                 commShell%rad0 = intShell(ii)%rad0
+                commShell%rho0 = intShell(ii)%rho0
                 commShell%hp0 = intShell(ii)%hp0
                 commShell%pres0 = intShell(ii)%pres0
                 commShell%vel0 = intShell(ii)%vel0
@@ -86,6 +87,7 @@ SUBROUTINE storeConvection(intShell, totShell, siz)
             commShell%ii1 = ii
             commShell%mass1 = intShell(ii)%mass1
             commShell%rad1 = intShell(ii)%rad1
+            commShell%rho1 = intShell(ii)%rho1
             commShell%hp1 = intShell(ii)%hp1
             commShell%pres1 = intShell(ii)%pres1
             
@@ -116,7 +118,7 @@ SUBROUTINE storeConvection(intShell, totShell, siz)
 END SUBROUTINE storeConvection
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! This subroutine calculates the overshooting limit.                       !!!
+!!! This subroutine calculates the advective overshooting limit.             !!!
 !!!                                                                          !!!
 !!! The input values are:                                                    !!!
 !!! -intShell, the inter-shell array.                                        !!!
@@ -128,7 +130,7 @@ END SUBROUTINE storeConvection
 !!!                                                                          !!!
 !!! On output firstOv holds the first overshooting index.                    !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
+SUBROUTINE advOvLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
     IMPLICIT NONE
     
     ! Input
@@ -139,8 +141,8 @@ SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
     ! Local
     TYPE (INTERSHELL), POINTER::sh, ovShell(:)
     DOUBLE PRECISION::fthick, convecSpan, pb, vb, rb, dmb, ptild, omeg
-    DOUBLE PRECISION::hps(2), ps(2), rs(2), rmed, kval, dms, timeVal
-    DOUBLE PRECISION::preRm, localOvParam
+    DOUBLE PRECISION::hps(2), ps(2), rs(2), rmed, kval, dms
+    DOUBLE PRECISION::localOvParam
     INTEGER::ii, jj, jjndx, siz, totShell, nShells
     LOGICAL::inShell, entered
     
@@ -224,13 +226,13 @@ SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
     
     ! Go shell by shell checking
     localOvParam = ovParam
-    DO ii = 1, nShells
-        ! Cycle if not convective shell or not convective envelope
+    DO ii = nShells, 1, -1
+        ! Cycle if not convective shell
         IF (.NOT.ovShell(ii)%isConvective) CYCLE
         
-        ! Check if we need to change the ovParam
+        ! Check if we have to change the localOvParam, exit if in core
         IF (ovShell(ii)%dens(p1indx).LT.1.D-3) THEN
-            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) CYCLE
+            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) EXIT
             localOvParam = ovPDCZParam
         END IF
         
@@ -251,10 +253,6 @@ SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
         
         ! Set flag to true
         inShell = .TRUE.
-        
-        ! Set to 0 the timeVal and to preRm rb
-        timeVal = 0.D0
-        preRm = rb
         
         DO jj = 1, nShells
             ! Calculate the index
@@ -306,10 +304,11 @@ SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
                 EXIT
             END IF
         END DO
-        
-        ! This only checks the lower limit, so we can exit now
-        EXIT
     END DO
+    
+    ! Keep borders in bounds
+    IF (firstOv.LT.1) firstOv = 1
+    IF (firstOv.GT.nShells) firstOv = nShells
     
     ! Deallocate ovShell
     DO ii = 1, nShells
@@ -317,7 +316,210 @@ SUBROUTINE ovLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
     END DO
     DEALLOCATE(ovShell)
     
-END SUBROUTINE ovLimit
+END SUBROUTINE advOvLimit
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! This subroutine calculates the diffusive overshooting limit.             !!!
+!!!                                                                          !!!
+!!! The input values are:                                                    !!!
+!!! -intShell, the inter-shell array.                                        !!!
+!!! -firstOv, first shell affected by overshooting.                          !!!
+!!! -p1indx, index for protons.                                              !!!
+!!! -he4indx, index for alpha particles.                                     !!!
+!!! -ovParam, the envelope overshooting parameter.                           !!!
+!!! -ovPDCZParam, the PDCZ overshooting parameter.                           !!!
+!!!                                                                          !!!
+!!! On output firstOv holds the first overshooting index.                    !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE diffOvLimit(intShell, firstOv, p1indx, he4indx, ovParam, ovPDCZParam)
+    IMPLICIT NONE
+    
+    ! Input
+    TYPE (INTERSHELL), TARGET::intShell(:)
+    DOUBLE PRECISION::ovParam, ovPDCZParam
+    INTEGER::firstOv, p1indx, he4indx
+    
+    ! Local
+    TYPE (INTERSHELL), POINTER::sh, ovShell(:)
+    DOUBLE PRECISION::fthick, convecSpan, pb, vb, rb, dmb, ptild, omeg, hps, ps
+    DOUBLE PRECISION::rs, kval, dms, rhob, rhos, hpb, localOvParam
+    DOUBLE PRECISION, PARAMETER::pi = 4*ATAN(1.D0), msun = 1.9984D30
+    INTEGER::ii, jj, jjndx, siz, totShell, nShells
+    LOGICAL::inShell, entered
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    ! Get sizes
+    siz = SIZE(intShell(1)%dens)
+    totShell = SIZE(intShell) + 1
+    
+    ! Count the effective number of shells, treating convective regions as one
+    ii = 1; nShells = 0
+    DO
+        ! Add one
+        nShells = nShells + 1
+        
+        ! Skip convectives
+        entered = .FALSE.
+        DO WHILE (intShell(ii)%isConvective)
+            IF (.NOT.entered) entered = .TRUE.
+            ii = ii + 1
+            
+            IF (ii.GE.totShell) EXIT
+        END DO
+        
+        ! Correct index
+        IF (entered) ii = ii - 1
+        
+        ii = ii + 1
+        IF (ii.GE.totShell) EXIT
+    END DO
+    
+    ! Allocate ovShell
+    ALLOCATE(ovShell(nShells))
+    DO ii = 1, nShells
+        ALLOCATE(ovShell(ii)%dens(siz))
+    END DO
+    
+    ! Store values in ovShell
+    ii = 1
+    DO jj = 1, nShells
+        ! Add this shell
+        IF (intShell(ii)%isConvective) THEN
+            sh => intShell(ii)%convShell
+        ELSE
+            sh => intShell(ii)
+        END IF
+        
+        ! Copy every value
+        ovShell(jj)%mass0 = sh%mass0
+        ovShell(jj)%mass1 = sh%mass1
+        ovShell(jj)%rho0 = sh%rho0
+        ovShell(jj)%rho1 = sh%rho1
+        ovShell(jj)%hp0 = sh%hp0
+        ovShell(jj)%hp1 = sh%hp1
+        ovShell(jj)%pres0 = sh%pres0
+        ovShell(jj)%pres1 = sh%pres1
+        ovShell(jj)%vel0 = sh%vel0
+        ovShell(jj)%vel1 = sh%vel1
+        ovShell(jj)%rad0 = sh%rad0
+        ovShell(jj)%rad1 = sh%rad1
+        ovShell(jj)%dens = sh%dens
+        
+        ! Copy convection flag
+        ovShell(jj)%isConvective = intShell(ii)%isConvective
+        
+        ! Skip convectives
+        entered = .FALSE.
+        DO WHILE (intShell(ii)%isConvective)
+            IF (.NOT.entered) entered = .TRUE.
+            ii = ii + 1
+            
+            IF (ii.GE.totShell) EXIT
+        END DO
+        
+        ! Correct index
+        IF (entered) ii = ii - 1
+        
+        ii = ii + 1
+    END DO
+    
+    ! Initialize firstOv
+    firstOv = totShell
+    
+    ! Go shell by shell checking
+    localOvParam = ovParam
+    DO ii = nShells, 1, -1
+        ! Cycle if not convective shell
+        IF (.NOT.ovShell(ii)%isConvective) CYCLE
+        
+        ! Check if we have to change the localOvParam, exit if in core
+        IF (ovShell(ii)%dens(p1indx).LT.1.D-3) THEN
+            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) EXIT
+            localOvParam = ovPDCZParam
+        END IF
+        
+        ! Calculate and store convective zone mass
+        dmb = ABS(ovShell(ii)%mass1 - ovShell(ii)%mass0)
+        
+        ! If dmb is too small ignore this convective zone
+        ! This is done to avoid dividing by zero
+        IF (dmb.LT.1.D-50) CYCLE
+        
+        ! Store convective (bubble) zone variables
+        pb = ovShell(ii)%pres0
+        rhob = ovShell(ii)%rho0/msun ! In solar masses
+        vb = ovShell(ii)%vel0
+        hpb = ovShell(ii)%hp0
+        rb = ovShell(ii)%rad0
+        
+        ! Calculate convective zone span
+        convecSpan = ovShell(ii)%rad1 - rb
+        
+        ! Set flag to true
+        inShell = .TRUE.
+        
+        DO jj = 1, nShells
+            ! Calculate the index
+            jjndx = ii - jj
+            
+            ! Borders and convective regions
+            IF (((jjndx).LT.1).OR.(jjndx.GT.nShells)) THEN
+                inShell = .FALSE.
+            ELSE IF (ovShell(jjndx)%isConvective) THEN
+                inShell = .FALSE.
+            END IF
+            
+            ! Exit if no more overshooting is to be applied
+            IF (.NOT.inShell) THEN
+                firstOv = jjndx
+                EXIT
+            END IF
+            
+            ! Calculate shell mass and cycle if zero mass shell
+            dms = ABS(ovShell(jjndx)%mass1 - ovShell(jjndx)%mass0)
+            IF (dms.LT.1.D-50) CYCLE
+            
+            ! Store shell variables
+            hps = ovShell(jjndx)%hp0
+            ps = ovShell(jjndx)%pres0
+            rhos = ovShell(jjndx)%rho0/msun ! In solar masses
+            rs = ovShell(jjndx)%rad0
+            
+            ! Calculate the adimensional pressure
+            ptild = ps/pb
+            
+            fthick = convecSpan/hps
+            IF (fthick.GT.1.D0) fthick = 1.D0
+            
+            omeg = 1.D0/(localOvParam*fthick)
+            IF (ptild.GT.1.D0) omeg = -omeg
+            
+            kval = (4*pi*rs*rs*rhos)**2
+            kval = kval*vb*(ptild**omeg)*0.1*hpb/3.D0
+            
+            ! If the diffusion coefficient is lower than 10^-30
+            ! which would mean a tau of 10^16 seconds for a
+            ! characteristic lenght of 10^-7, we consider it done
+            IF (kval.LT.1.D-30) THEN
+                inShell = .FALSE.
+                firstOv = jjndx
+                EXIT
+            END IF
+        END DO
+    END DO
+    
+    ! Keep borders in bounds
+    IF (firstOv.LT.1) firstOv = 1
+    IF (firstOv.GT.nShells) firstOv = nShells
+    
+    ! Deallocate ovShell
+    DO ii = 1, nShells
+        DEALLOCATE(ovShell(ii)%dens)
+    END DO
+    DEALLOCATE(ovShell)
+    
+END SUBROUTINE diffOvLimit
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! This subroutine does a convective mixing from values in intShell.        !!!
@@ -519,7 +721,7 @@ SUBROUTINE createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
         IF (ii.GE.totShell) EXIT
     END DO
     
-    ! Allocate ovShell, ovMatrix, prevSol and columns
+    ! Allocate ovShell and ovMatrix
     ALLOCATE(ovShell(nShells), ovMatrix(nShells, nShells))
     DO ii = 1, nShells
         ALLOCATE(ovShell(ii)%dens(siz))
@@ -579,12 +781,12 @@ SUBROUTINE createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
     ! Go shell by shell creating the coefficients
     localOvParam = ovParam
     DO ii = nShells, 1, -1
-        ! Cycle if not convective shell or not convective envelope
+        ! Cycle if not convective shell
         IF (.NOT.ovShell(ii)%isConvective) CYCLE
         
-        ! Check if we have to change the localOvParam
+        ! Check if we have to change the localOvParam, exit if in core
         IF (ovShell(ii)%dens(p1indx).LT.1.D-3) THEN
-            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) CYCLE
+            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) EXIT
             localOvParam = ovPDCZParam
         END IF
         
@@ -609,8 +811,8 @@ SUBROUTINE createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
         ! Apply overshooting
         DO mm = 1, 2
             ! Apply it only downwards
-            IF (mm.EQ.2) CYCLE ! TODO CAUTION: TODO
-                               !  The code can only go downwards for now
+            IF (mm.EQ.2) CYCLE ! WARNING:
+                               ! The code can only go downwards for now
             
             ! Set flag to true
             inShell = .TRUE.
@@ -775,6 +977,325 @@ SUBROUTINE createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
 END SUBROUTINE createOvMatrix
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! This subroutine creates the overshooting matrix.                         !!!
+!!!                                                                          !!!
+!!! The input values are:                                                    !!!
+!!! -ovMatrix, a matrix holding the overshooting arrays (a, b and c).        !!!
+!!! -intShell, the inter-shell array.                                        !!!
+!!! -ovShell, the shell arrays for the overshooting matrix.                  !!!
+!!! -nShells, size of ovShell.                                               !!!
+!!! -firstOv, first shell affected by overshooting.                          !!!
+!!! -p1indx, index for protons.                                              !!!
+!!! -he4indx, index for alpha particles.                                     !!!
+!!! -ovParam, the envelope overshooting parameter.                           !!!
+!!! -ovPDCZParam, the PDCZ overshooting parameter.                           !!!
+!!! -convecIndex, the array holding the indices for the convective zones as  !!!
+!!!               well as the furthermost index they affect.                 !!!
+!!! -dx, delta x, with dx(j) defined as x_{j + 1} - x_j                      !!!
+!!! -performOv, bool to know if we should perform overshooting or not.       !!!
+!!!                                                                          !!!
+!!! On output all extra-mixed values are stored in intShell, even the        !!!
+!!! convective ones. The common convective pointer is outdated.              !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE createOvArrays(ovMatrix, intShell, ovShell, nShells, firstOv, &
+                          p1indx, he4indx, ovParam, ovPDCZParam, convecIndex, &
+                          dx, performOv)
+    IMPLICIT NONE
+    
+    ! Input
+    TYPE (INTERSHELL), POINTER::ovShell(:)
+    TYPE (INTERSHELL), TARGET::intShell(:)
+    DOUBLE PRECISION, POINTER::ovMatrix(:, :), dx(:)
+    DOUBLE PRECISION::ovParam, ovPDCZParam
+    INTEGER::nShells, firstOv, p1indx, he4indx
+    INTEGER, POINTER::convecIndex(:, :)
+    LOGICAL::performOv
+    
+    ! Local
+    TYPE (INTERSHELL), POINTER::sh
+    DOUBLE PRECISION, POINTER::holdOvMatrix(:, :), holdDx(:)
+    DOUBLE PRECISION::fthick, convecSpan, pb, rb, rhob, vb, dmb, ptild, omeg
+    DOUBLE PRECISION::hps, ps, rs, rhos, kval, dms, hpb, localOvParam, radRhob
+    DOUBLE PRECISION, PARAMETER::pi = 4*ATAN(1.D0), msun = 1.9984D30
+    INTEGER, POINTER::holdConvecIndex(:, :)
+    INTEGER::ii, jj, mm, jjndx, sig(2), siz, totShell, times
+    LOGICAL::inShell, entered
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    ! Get sizes
+    siz = SIZE(intShell(1)%dens)
+    totShell = SIZE(intShell) + 1
+    
+    ! Count the effective number of shells, treating convective regions as one
+    ii = 1; nShells = 0
+    DO
+        ! Add one
+        nShells = nShells + 1
+        
+        ! Skip convectives
+        entered = .FALSE.
+        DO WHILE (intShell(ii)%isConvective)
+            IF (.NOT.entered) entered = .TRUE.
+            ii = ii + 1
+            
+            IF (ii.GE.totShell) EXIT
+        END DO
+        
+        ! Correct index
+        IF (entered) ii = ii - 1
+        
+        ii = ii + 1
+        IF (ii.GE.totShell) EXIT
+    END DO
+    
+    ! Allocate ovShell and ovMatrix
+    ALLOCATE(ovShell(nShells), ovMatrix(nShells, 4))
+    ALLOCATE(convecIndex(nShells, 2), dx(nShells))
+    DO ii = 1, nShells
+        ALLOCATE(ovShell(ii)%dens(siz))
+    END DO
+    
+    ! Store values in ovShell
+    ii = 1; dx = 1.D0
+    DO jj = 1, nShells
+        ! Add this shell
+        IF (intShell(ii)%isConvective) THEN
+            sh => intShell(ii)%convShell
+        ELSE
+            sh => intShell(ii)
+        END IF
+        
+        ! Copy every value
+        ovShell(jj)%mass0 = sh%mass0
+        ovShell(jj)%mass1 = sh%mass1
+        ovShell(jj)%rho0 = sh%rho0
+        ovShell(jj)%rho1 = sh%rho1
+        ovShell(jj)%hp0 = sh%hp0
+        ovShell(jj)%hp1 = sh%hp1
+        ovShell(jj)%pres0 = sh%pres0
+        ovShell(jj)%pres1 = sh%pres1
+        ovShell(jj)%vel0 = sh%vel0
+        ovShell(jj)%vel1 = sh%vel1
+        ovShell(jj)%rad0 = sh%rad0
+        ovShell(jj)%rad1 = sh%rad1
+        ovShell(jj)%dens = sh%dens
+        
+        ! Copy convection flag
+        ovShell(jj)%isConvective = intShell(ii)%isConvective
+        
+        ! Skip convectives
+        entered = .FALSE.
+        DO WHILE (intShell(ii)%isConvective)
+            IF (.NOT.entered) entered = .TRUE.
+            ii = ii + 1
+            
+            IF (ii.GE.totShell) EXIT
+        END DO
+        
+        ! Correct index
+        IF (entered) ii = ii - 1
+        
+        ii = ii + 1
+    END DO
+    
+    ! Create dx
+    DO ii = 1, nShells
+        dx(ii) = ovShell(ii)%mass1 - ovShell(ii)%mass0
+    END DO
+    
+    ! The ovMatrix holds the coefficients a, b and c for the solution of the
+    ! diffusive overshooting with the backwards euler method
+    
+    ! ovMatrix(:, 1) = a(:); ovMatrix(:, 2) = b(:); ovMatrix(:, 3) = c and
+    ! ovMatrix(:, 4) = k(:) <-- diffusion coefficient.
+    ovMatrix = 0.D0
+    
+    ! Sign array
+    sig = (/-1, 1/)
+    
+    ! Go shell by shell creating the coefficients
+    times = 0; convecIndex = 0
+    localOvParam = ovParam
+    DO ii = nShells, 1, -1
+        
+        ! Cycle if not convective shell
+        IF (.NOT.ovShell(ii)%isConvective) CYCLE
+        
+        ! Check if we have to change the localOvParam, exit if in core
+        IF (ovShell(ii)%dens(p1indx).LT.1.D-3) THEN
+            IF (ovShell(ii)%dens(he4indx).LT.1.D-4) EXIT
+            localOvParam = ovPDCZParam
+        END IF
+        
+        ! Count this as a convective zone
+        times = times + 1
+        
+        ! Calculate and store convective zone mass
+        dmb = ABS(ovShell(ii)%mass1 - ovShell(ii)%mass0)
+        
+        ! If dmb is too small ignore this convective zone
+        ! This is done to avoid dividing by zero
+        IF (dmb.LT.1.D-50) CYCLE
+        
+        ! Store convective (bubble) zone variables
+        pb = ovShell(ii)%pres0
+        rhob = ovShell(ii)%rho0/msun ! In solar masses
+        vb = ovShell(ii)%vel0
+        hpb = ovShell(ii)%hp0
+        rb = ovShell(ii)%rad0
+        
+        ! Calculate convective zone span
+        convecSpan = ovShell(ii)%rad1 - rb
+        
+        ! Get diffusive coefficient
+        radRhob = (4*pi*rb*rb*rhob)**2
+        radRhob = radRhob*0.1*hpb/3.D0
+        
+        ! Add it to the matrix. We do not care about the coefficient at ii + 1
+        ! because the flux 0 condition takes care of it.
+        ovMatrix(ii, 4) = vb*radRhob
+        
+        ! Fill convecIndex
+        convecIndex(times, 1) = ii
+        
+        ! Apply overshooting
+        DO mm = 1, 2
+            ! Apply it only downwards
+            IF (mm.EQ.2) CYCLE ! WARNING:
+                               ! The code can only go downwards for now
+            
+            ! Set flag to true
+            inShell = .TRUE.
+            
+            DO jj = 1, nShells
+                ! Calculate the index
+                jjndx = ii + sig(mm)*jj
+                
+                ! Borders and convective regions
+                IF (((jjndx).LT.1).OR.(jjndx.GT.nShells)) THEN
+                    inShell = .FALSE.
+                ELSE IF (ovShell(jjndx)%isConvective) THEN
+                    inShell = .FALSE.
+                END IF
+                
+                ! Exit if no more overshooting is to be applied
+                IF (.NOT.inShell) EXIT
+                
+                ! Calculate shell mass and cycle if zero mass shell
+                dms = ABS(ovShell(jjndx)%mass1 - ovShell(jjndx)%mass0)
+                IF (dms.LT.1.D-50) CYCLE
+                
+                ! Store shell variables
+                hps = ovShell(jjndx)%hp0
+                ps = ovShell(jjndx)%pres0
+                rhos = ovShell(jjndx)%rho0/msun ! In solar masses
+                rs = ovShell(jjndx)%rad0
+                
+                ! Calculate the adimensional pressure
+                ptild = ps/pb
+                
+                fthick = convecSpan/hps
+                IF (fthick.GT.1.D0) fthick = 1.D0
+                
+                omeg = 1.D0/(localOvParam*fthick)
+                IF (ptild.GT.1.D0) omeg = -omeg
+                
+                kval = (4*pi*rs*rs*rhos)**2
+                kval = kval*vb*(ptild**omeg)*0.1*hpb/3.D0
+                
+                ! If the diffusion coefficient is lower than 10^-30
+                ! which would mean a tau of 10^16 seconds for a
+                ! characteristic lenght of 10^-7, we consider it done
+                IF (kval.LT.1.D-30) THEN
+                    inShell = .FALSE.
+                    kval = 0.D0
+                    
+                    ! Check that there is at least one shell
+                    ! Otherwise, eliminate this convective shell from the
+                    ! calculations
+                    IF (jj.EQ.1) THEN
+                        convecIndex(times, :) = 0
+                        times = times - 1
+                    END IF
+                    
+                    EXIT
+                ELSE
+                    ! Add the diffusion coefficient to the array
+                    ovMatrix(jjndx, 4) = kval
+                    
+                    ! Put this shell into convecIndex
+                    convecIndex(times, 2) = jjndx
+                END IF
+            END DO
+        END DO
+    END DO
+    
+    ! Check if we should perform overshooting
+    IF (times.GT.0) THEN
+        performOv = .TRUE.
+    ELSE
+        performOv = .FALSE.
+    END IF
+    
+    ! If performing overshooting, shrink arrays
+    IF (performOv) THEN
+        holdOvMatrix => ovMatrix
+        holdConvecIndex => convecIndex
+        holdDx => dx
+        
+        ! Take first and last indices
+        ii = holdConvecIndex(times, 2)
+        jj = holdConvecIndex(1, 1)
+        
+        IF (ii.LT.firstOv) THEN
+            PRINT*, "firstOv > locFirstOv, stopping"
+            PRINT*, firstOv, ii
+            STOP
+        END IF
+        
+        ! Now allocate new ovMatrix and convecIndex
+        ! Redefine nShells first
+        nShells = jj - firstOv + 1
+        ALLOCATE(convecIndex(times, 2), ovMatrix(nShells, 4), dx(nShells))
+        
+        ovMatrix = holdOvMatrix(firstOv:jj, :)
+        dx = holdDx(firstOv:jj)
+        convecIndex = holdConvecIndex(1:times, :) - firstOv + 1
+        
+        DEALLOCATE(holdOvMatrix, holdConvecIndex)
+        NULLIFY(holdOvMatrix, holdConvecIndex)
+    END IF
+    
+    ! If perform overshooting, create coefficients
+    
+    ! The schematic for the coefficients according to the diffusion
+    ! value k is (python notation):
+    !
+    ! a[1:-1] = k[2:]/(dx[1:-1]*dxt[2:])
+    ! c[1:-1] = k[1:-1]/(dx[1:-1]*dxt[1:-1])
+    ! b = a + c
+    
+    IF (performOv) THEN
+        ! Create "a" coefficient
+        DO ii = 1, nShells - 1
+            ovMatrix(ii, 1) = ovMatrix(ii + 1, 4)/(dx(ii)*SUM(dx(ii:ii+1)))
+            ovMatrix(ii, 1) = ovMatrix(ii, 1)*2
+        END DO
+        
+        ! Now "c" coefficient
+        DO ii = 2, nShells
+            ovMatrix(ii, 3) = ovMatrix(ii, 4)/(dx(ii)*SUM(dx(ii-1:ii)))
+            ovMatrix(ii, 3) = ovMatrix(ii, 3)*2
+        END DO
+        
+        ! Finally "b" coefficient
+        ovMatrix(:, 2) = ovMatrix(:, 1) + ovMatrix(:, 3)
+    END IF
+    
+END SUBROUTINE createOvArrays
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! This subroutine applies overshooting from values in intShell.            !!!
 !!!                                                                          !!!
 !!! The input values are:                                                    !!!
@@ -790,6 +1311,8 @@ END SUBROUTINE createOvMatrix
 !!!               well as the furthermost index they affect.                 !!!
 !!! -yscale, threshold for zero abundances.                                  !!!
 !!! -siz, the number of species (size of abundance dimension).               !!!
+!!! -dx, delta x, with dx(j) defined as x_{j + 1} - x_j                      !!!
+!!! -ovMode, the overshooting mode (advective or diffusive).                 !!!
 !!! -nProc, total number of threads.                                         !!!
 !!! -rank, this thread index.                                                !!!
 !!!                                                                          !!!
@@ -797,8 +1320,8 @@ END SUBROUTINE createOvMatrix
 !!! convective ones. The common convective pointer is outdated.              !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
-                            firstOv, dt, eps, convecIndex, yscale, siz, nProc, &
-                            rank)
+                            firstOv, dt, eps, convecIndex, yscale, siz, &
+                            dx, ovMode, nProc, rank)
     IMPLICIT NONE
     
     ! MPI variables
@@ -806,8 +1329,9 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
     
     ! Input
     TYPE (INTERSHELL), TARGET::intShell(:), ovShell(:)
-    DOUBLE PRECISION::ovMatrix(:, :), dt, eps, yscale
+    DOUBLE PRECISION::ovMatrix(:, :), dt, eps, yscale, dx(:)
     INTEGER::totShell, nShells, firstOv, convecIndex(:, :), siz, nProc, rank
+    CHARACTER(20)::ovMode
     
     ! Local
     TYPE (INTERSHELL), POINTER::sh
@@ -884,8 +1408,12 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
     
     ! Solve for dtot
     dtot = dt
-    CALL solveOv(ovMatrix, redSol, nShells, dtot, convecIndex, yscale, eps, &
-                 redSiz)
+    IF (ovMode.EQ."advective") THEN
+        CALL solveAdvOv(ovMatrix, redSol, nShells, dtot, convecIndex, yscale, &
+                        eps, redSiz)
+    ELSE IF (ovMode.EQ."diffusive") THEN
+        CALL solveDifOv(ovMatrix, redSol, nShells, dtot, dx, eps, redSiz)
+    END IF
     
     ! Copy values to prevSol
     DO jj = 1, nShells
@@ -959,8 +1487,8 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
 END SUBROUTINE applyOvershooting
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! This subroutine solves the overshooting equations with a Richardson      !!!
-!!! extrapolation method on an euler method.                                 !!!
+!!! This subroutine solves the advective overshooting equations with a       !!!
+!!! Richardson extrapolation method on an euler method.                      !!!
 !!!                                                                          !!!
 !!! The input values are:                                                    !!!
 !!! -ovMatrix, the overshooting matrix.                                      !!!
@@ -975,8 +1503,8 @@ END SUBROUTINE applyOvershooting
 !!!                                                                          !!!
 !!! On output prevSol holds the solution to the overshooting problem.        !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE solveOv(ovMatrix, prevSol, nShells, dtot, convecIndex, yscale, eps, &
-                   siz)
+SUBROUTINE solveAdvOv(ovMatrix, prevSol, nShells, dtot, convecIndex, yscale, &
+                      eps, siz)
     IMPLICIT NONE
     
     ! Input
@@ -1133,6 +1661,135 @@ SUBROUTINE solveOv(ovMatrix, prevSol, nShells, dtot, convecIndex, yscale, eps, &
         END IF
     END DO
     
-END SUBROUTINE solveOv
+END SUBROUTINE solveAdvOv
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! This subroutine solves the diffusive overshooting equations with a       !!!
+!!! Crank-Nicholson method.                                                  !!!
+!!!                                                                          !!!
+!!! The input values are:                                                    !!!
+!!! -ovMatrix, the overshooting matrix.                                      !!!
+!!! -prevSol, initial and subsequent values.                                 !!!
+!!! -nShells, size of ovMatrix.                                              !!!
+!!! -dtot, total timestep.                                                   !!!
+!!! -dx, delta x, with dx(j) defined as x_{j + 1} - x_j                      !!!
+!!! -eps, relative error.                                                    !!!
+!!! -siz, number of species.                                                 !!!
+!!!                                                                          !!!
+!!! On output prevSol holds the solution to the overshooting problem.        !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE solveDifOv(ovMatrix, prevSol, nShells, dtot, dx, eps, siz)
+    IMPLICIT NONE
+    
+    ! Input
+    DOUBLE PRECISION::ovMatrix(:, :), prevSol(:, :), dtot, dx(:), eps
+    INTEGER::nShells, siz
+    
+    ! Local
+    DOUBLE PRECISION::Htot, HH, xx(nShells, siz), normFactors(siz), massSum
+    DOUBLE PRECISION::avgSol, dxNew(nShells), coefs(nShells, 3), error, tempErr
+    DOUBLE PRECISION::pCoefs(nShells, 3), dx2(nShells - 1), indep(nShells, siz)
+    DOUBLE PRECISION::newSol(nShells, siz), coarseSol(nShells, siz), dtStep
+    INTEGER::ii, jj, l1, l2, redSiz
+    LOGICAL::firstTime
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    ! Get normalization factors and normalize
+    DO ii = 1, siz
+        normFactors(ii) = MAXVAL(prevSol(:, ii))
+        IF (normFactors(ii).GT.0.D0) THEN
+            prevSol(:, ii) = prevSol(:, ii)/normFactors(ii)
+        END IF
+    END DO
+    
+    ! Define initial timestep
+    firstTime = .TRUE.
+    Htot = dtot; dtStep = dtot*0.1; HH = dtStep
+    DO
+        ! Calculate and solve first the coefficients matrix
+        coefs(:, 1) = -HH*ovMatrix(:, 1)
+        coefs(:, 2) = 1 + HH*ovMatrix(:, 2)
+        coefs(:, 3) = -HH*ovMatrix(:, 3)
+        
+        ! Initialize integration variables
+        xx = prevSol
+        
+        ! Now solve matrix with the Thomas algorithm
+        coefs(1, 1) = coefs(1, 1)/coefs(1, 2)
+        DO ii = 2, nShells - 1
+            coefs(ii, 1) = coefs(ii, 1)/(coefs(ii, 2) - &
+                                           coefs(ii, 3)*coefs(ii - 1, 1))
+        END DO
+        
+        ! Finally solve diffusive step
+        DO WHILE (Htot.GT.0.D0)
+            ! Create independent array
+            indep = xx
+            
+            ! Now transform it
+            DO ii = 1, siz
+                indep(1, ii) = indep(1, ii)/coefs(1, 2)
+                DO jj = 2, nShells
+                    indep(jj, ii) = indep(jj, ii) - &
+                                    coefs(jj, 3)*indep(jj - 1, ii)
+                    indep(jj, ii) = indep(jj, ii)/(coefs(jj, 2) - &
+                                                coefs(jj, 3)*coefs(jj - 1, 1))
+                END DO
+            END DO
+            
+            ! And use it to solve
+            DO ii = 1, siz
+                xx(nShells, ii) = indep(nShells, ii)
+                DO jj = nShells - 1, 1, -1
+                    xx(jj, ii) = indep(jj, ii) - xx(jj + 1, ii)*coefs(jj, 1)
+                END DO
+            END DO
+            
+            Htot = Htot - HH
+            IF (HH.GT.Htot) HH = Htot
+        END DO
+        
+        ! If first time, return now
+        IF (firstTime) THEN
+            firstTime = .FALSE.
+            coarseSol = xx
+            Htot = dtot
+            dtStep = dtStep*0.5
+            HH = dtStep
+            CYCLE
+        END IF
+        
+        ! Compare coarseSol and xx. If the difference is lower than eps,
+        ! then we can exit
+        
+        ! Calculate error
+        error = 0.D0
+        DO ii = 1, siz
+            tempErr = SUM(ABS(coarseSol(:, ii) - xx(:, ii)))/nShells
+            IF (tempErr.GT.error) error = tempErr
+        END DO
+        
+        ! Check if exit
+        IF (error.LE.eps) THEN
+            prevSol = xx
+            EXIT
+        END IF
+        
+        ! Update dt
+        Htot = dtot
+        dtStep = dtStep*0.5
+        HH = dtStep
+        coarseSol = xx
+    END DO
+    
+    ! De-normalize
+    DO ii = 1, siz
+        IF (normFactors(ii).GT.0.D0) THEN
+            prevSol(:, ii) = prevSol(:, ii)*normFactors(ii)
+        END IF
+    END DO
+    
+END SUBROUTINE solveDifOv
 
 END MODULE mixer

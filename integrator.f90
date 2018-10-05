@@ -30,15 +30,17 @@ CONTAINS
 !!! -firstOv, first shell affected by overshooting.                          !!!
 !!! -firstIntegShell, first shell to consider integration.                   !!!
 !!! -lastIntegShell, last shell to consider integration.                     !!!
+!!! -ovMode, the overshooting mode (advective or diffusive).                 !!!
 !!! -nProc, total number of threads.                                         !!!
 !!! -rank, this thread index.                                                !!!
 !!!                                                                          !!!
 !!! At the output, intShell%dens has the updated abundances.                 !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE diffusiveIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
+SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
                             eIndices, p1indx, he4indx, ovParam, ovPDCZParam, &
                             mixFreq, eps, siz, yscale, firstOv, &
-                            firstIntegShell, lastIntegShell, nProc, rank)
+                            firstIntegShell, lastIntegShell, ovMode, nProc, &
+                            rank)
     IMPLICIT NONE
     
     ! Input
@@ -48,10 +50,11 @@ SUBROUTINE diffusiveIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     DOUBLE PRECISION::dt, ovParam, ovPDCZParam, eps, yscale
     INTEGER::totShell, ntwkMass(:), p1indx, he4indx, mixFreq, siz
     INTEGER::firstIntegShell, lastIntegShell, firstOv, nProc, rank
+    CHARACTER(20)::ovMode
     
     ! Local
     TYPE (INTERSHELL), POINTER::ovShell(:)
-    DOUBLE PRECISION, POINTER::ovMatrix(:, :)
+    DOUBLE PRECISION, POINTER::ovMatrix(:, :), dx(:)
     DOUBLE PRECISION::mixHH
     INTEGER, POINTER::convecIndex(:, :)
     INTEGER::firstMix, ii, kk, nShells
@@ -80,9 +83,15 @@ SUBROUTINE diffusiveIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     
     ! Create Overshooting Matrix
     IF ((ovParam.GT.0.D0).OR.(ovPDCZParam.GT.0.D0)) THEN
-        CALL createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
-                            p1indx, he4indx, ovParam, ovPDCZParam, &
-                            convecIndex, performOv)
+        IF (ovMode.EQ."advective") THEN
+            CALL createOvMatrix(ovMatrix, intShell, ovShell, nShells, firstOv, &
+                                p1indx, he4indx, ovParam, ovPDCZParam, &
+                                convecIndex, performOv)
+        ELSE IF (ovMode.EQ."diffusive") THEN
+            CALL createOvArrays(ovMatrix, intShell, ovShell, nShells, firstOv, &
+                                p1indx, he4indx, ovParam, ovPDCZParam, &
+                                convecIndex, dx, performOv)
+        END IF
     ELSE
         performOv = .FALSE.
     END IF
@@ -120,8 +129,8 @@ SUBROUTINE diffusiveIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
         IF (.NOT.performOv) CYCLE
         
         CALL applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
-                        firstOv, mixHH, eps, convecIndex, yscale, siz, nProc, &
-                        rank)
+                        firstOv, mixHH, eps, convecIndex, yscale, siz, dx, &
+                        ovMode, nProc, rank)
         
         CALL mixConvection(intShell, totShell, siz)
     END DO
@@ -135,9 +144,10 @@ SUBROUTINE diffusiveIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     END IF
     
     ! Deallocate convecIndex
-    IF (performOv) DEALLOCATE(convecIndex)
+    IF (performOv.OR.(ovMode.EQ."diffusive")) DEALLOCATE(convecIndex)
+    IF (ovMode.EQ."diffusive") DEALLOCATE(dx)
     
-END SUBROUTINE diffusiveIntegration
+END SUBROUTINE mixedIntegration
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! This subroutine integrates without mixing.                               !!!
