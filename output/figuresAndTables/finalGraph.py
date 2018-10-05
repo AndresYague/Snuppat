@@ -27,7 +27,7 @@ def main():
         for line in fread:
             lnlst = line.split()
             
-            # And names with atomic number
+            # Correct special names
             if lnlst[1] == "d" or lnlst[2] == "0":
                 lnlst[1] = "h"
             
