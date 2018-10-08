@@ -129,8 +129,8 @@ SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
         IF (.NOT.performOv) CYCLE
         
         CALL applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
-                        firstOv, mixHH, eps, convecIndex, yscale, siz, dx, &
-                        ovMode, nProc, rank)
+                        firstOv, mixHH, eps, convecIndex, yscale, siz, ovMode, &
+                        nProc, rank)
         
         CALL mixConvection(intShell, totShell, siz)
     END DO

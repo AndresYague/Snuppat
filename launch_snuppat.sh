@@ -9,5 +9,5 @@ if [ $# -eq 0 ]; then
     ./snuppat
 else
 
-    mpirun -n $1 snuppat
+    mpirun -n $1 ./snuppat
 fi

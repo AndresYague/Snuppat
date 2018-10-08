@@ -1311,7 +1311,6 @@ END SUBROUTINE createOvArrays
 !!!               well as the furthermost index they affect.                 !!!
 !!! -yscale, threshold for zero abundances.                                  !!!
 !!! -siz, the number of species (size of abundance dimension).               !!!
-!!! -dx, delta x, with dx(j) defined as x_{j + 1} - x_j                      !!!
 !!! -ovMode, the overshooting mode (advective or diffusive).                 !!!
 !!! -nProc, total number of threads.                                         !!!
 !!! -rank, this thread index.                                                !!!
@@ -1321,7 +1320,7 @@ END SUBROUTINE createOvArrays
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
                             firstOv, dt, eps, convecIndex, yscale, siz, &
-                            dx, ovMode, nProc, rank)
+                            ovMode, nProc, rank)
     IMPLICIT NONE
     
     ! MPI variables
@@ -1329,7 +1328,7 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
     
     ! Input
     TYPE (INTERSHELL), TARGET::intShell(:), ovShell(:)
-    DOUBLE PRECISION::ovMatrix(:, :), dt, eps, yscale, dx(:)
+    DOUBLE PRECISION::ovMatrix(:, :), dt, eps, yscale
     INTEGER::totShell, nShells, firstOv, convecIndex(:, :), siz, nProc, rank
     CHARACTER(20)::ovMode
     
@@ -1412,7 +1411,7 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
         CALL solveAdvOv(ovMatrix, redSol, nShells, dtot, convecIndex, yscale, &
                         eps, redSiz)
     ELSE IF (ovMode.EQ."diffusive") THEN
-        CALL solveDifOv(ovMatrix, redSol, nShells, dtot, dx, eps, redSiz)
+        CALL solveDifOv(ovMatrix, redSol, nShells, dtot, yscale, eps, redSiz)
     END IF
     
     ! Copy values to prevSol
@@ -1672,25 +1671,23 @@ END SUBROUTINE solveAdvOv
 !!! -prevSol, initial and subsequent values.                                 !!!
 !!! -nShells, size of ovMatrix.                                              !!!
 !!! -dtot, total timestep.                                                   !!!
-!!! -dx, delta x, with dx(j) defined as x_{j + 1} - x_j                      !!!
+!!! -yscale, threshold for zero abundances.                                  !!!
 !!! -eps, relative error.                                                    !!!
 !!! -siz, number of species.                                                 !!!
 !!!                                                                          !!!
 !!! On output prevSol holds the solution to the overshooting problem.        !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE solveDifOv(ovMatrix, prevSol, nShells, dtot, dx, eps, siz)
+SUBROUTINE solveDifOv(ovMatrix, prevSol, nShells, dtot, yscale, eps, siz)
     IMPLICIT NONE
     
     ! Input
-    DOUBLE PRECISION::ovMatrix(:, :), prevSol(:, :), dtot, dx(:), eps
+    DOUBLE PRECISION::ovMatrix(:, :), prevSol(:, :), dtot, yscale, eps
     INTEGER::nShells, siz
     
     ! Local
-    DOUBLE PRECISION::Htot, HH, xx(nShells, siz), normFactors(siz), massSum
-    DOUBLE PRECISION::avgSol, dxNew(nShells), coefs(nShells, 3), error, tempErr
-    DOUBLE PRECISION::pCoefs(nShells, 3), dx2(nShells - 1), indep(nShells, siz)
-    DOUBLE PRECISION::newSol(nShells, siz), coarseSol(nShells, siz), dtStep
-    INTEGER::ii, jj, l1, l2, redSiz
+    DOUBLE PRECISION::Htot, HH, xx(nShells, siz), normFactors(siz), error
+    DOUBLE PRECISION::tempErr, dtStep, coarseSol(nShells, siz)
+    INTEGER::ii
     LOGICAL::firstTime
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1705,82 +1702,49 @@ SUBROUTINE solveDifOv(ovMatrix, prevSol, nShells, dtot, dx, eps, siz)
     
     ! Define initial timestep
     firstTime = .TRUE.
-    Htot = dtot; dtStep = dtot*0.1; HH = dtStep
-    DO
-        ! Calculate and solve first the coefficients matrix
-        coefs(:, 1) = -HH*ovMatrix(:, 1)
-        coefs(:, 2) = 1 + HH*ovMatrix(:, 2)
-        coefs(:, 3) = -HH*ovMatrix(:, 3)
+    Htot = dtot; HH = dtot; dtStep = HH
+    DO WHILE(Htot.GT.0)
         
-        ! Initialize integration variables
-        xx = prevSol
+        ! If too many steps, reduce the total timestep fast
+        IF (HH/dtStep.GT.2.D2) THEN
+            HH = HH*0.1
+            dtStep = HH
+            firstTime = .TRUE.
+        END IF
         
-        ! Now solve matrix with the Thomas algorithm
-        coefs(1, 1) = coefs(1, 1)/coefs(1, 2)
-        DO ii = 2, nShells - 1
-            coefs(ii, 1) = coefs(ii, 1)/(coefs(ii, 2) - &
-                                           coefs(ii, 3)*coefs(ii - 1, 1))
-        END DO
-        
-        ! Finally solve diffusive step
-        DO WHILE (Htot.GT.0.D0)
-            ! Create independent array
-            indep = xx
-            
-            ! Now transform it
-            DO ii = 1, siz
-                indep(1, ii) = indep(1, ii)/coefs(1, 2)
-                DO jj = 2, nShells
-                    indep(jj, ii) = indep(jj, ii) - &
-                                    coefs(jj, 3)*indep(jj - 1, ii)
-                    indep(jj, ii) = indep(jj, ii)/(coefs(jj, 2) - &
-                                                coefs(jj, 3)*coefs(jj - 1, 1))
-                END DO
-            END DO
-            
-            ! And use it to solve
-            DO ii = 1, siz
-                xx(nShells, ii) = indep(nShells, ii)
-                DO jj = nShells - 1, 1, -1
-                    xx(jj, ii) = indep(jj, ii) - xx(jj + 1, ii)*coefs(jj, 1)
-                END DO
-            END DO
-            
-            Htot = Htot - HH
-            IF (HH.GT.Htot) HH = Htot
-        END DO
+        ! Solve system for HH
+        xx = solveCrankThomas(ovMatrix, prevSol, nShells, HH, dtStep, siz)
         
         ! If first time, return now
         IF (firstTime) THEN
             firstTime = .FALSE.
             coarseSol = xx
-            Htot = dtot
             dtStep = dtStep*0.5
-            HH = dtStep
             CYCLE
         END IF
         
         ! Compare coarseSol and xx. If the difference is lower than eps,
-        ! then we can exit
+        ! then this solution has converged
         
         ! Calculate error
         error = 0.D0
         DO ii = 1, siz
-            tempErr = SUM(ABS(coarseSol(:, ii) - xx(:, ii)))/nShells
+            tempErr = SUM(ABS((coarseSol(:, ii) - xx(:, ii))/(coarseSol(:, ii) &
+                                                             + yscale)))/nShells
             IF (tempErr.GT.error) error = tempErr
         END DO
         
-        ! Check if exit
+        ! Check if increase timestep, else reduce it
         IF (error.LE.eps) THEN
             prevSol = xx
-            EXIT
+            Htot = Htot - HH
+            HH = MIN(HH*SQRT(eps/error), Htot)
+            dtStep = HH
+            firstTime = .TRUE.
+        ELSE
+            dtStep = dtStep*0.5
+            coarseSol = xx
         END IF
-        
-        ! Update dt
-        Htot = dtot
-        dtStep = dtStep*0.5
-        HH = dtStep
-        coarseSol = xx
     END DO
     
     ! De-normalize
@@ -1791,5 +1755,108 @@ SUBROUTINE solveDifOv(ovMatrix, prevSol, nShells, dtot, dx, eps, siz)
     END DO
     
 END SUBROUTINE solveDifOv
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! This function solves the specific Crank-Nicholson implementation with a  !!!
+!!! Thomas algorithm for a total time Htot and a timestep of HH.             !!!
+!!!                                                                          !!!
+!!! The input values are:                                                    !!!
+!!! -ovMatrix, the overshooting matrix.                                      !!!
+!!! -prevSol, initial and subsequent values.                                 !!!
+!!! -nShells, size of ovMatrix.                                              !!!
+!!! -dtot, total integration time.                                           !!!
+!!! -dtStep, fractional timestep chosen.                                     !!!
+!!! -siz, number of species.                                                 !!!
+!!!                                                                          !!!
+!!! On output prevSol holds the solution to the overshooting problem.        !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+FUNCTION solveCrankThomas(ovMatrix, prevSol, nShells, dtot, dtStep, siz)
+    IMPLICIT NONE
+    
+    ! Input
+    DOUBLE PRECISION::ovMatrix(:, :), prevSol(:, :), dtot, dtStep
+    INTEGER::nShells, siz
+    
+    ! Function
+    DOUBLE PRECISION::solveCrankThomas(nShells, siz)
+    
+    ! Local
+    DOUBLE PRECISION::xx(nShells, siz), coefs(nShells, 3), indep(nShells, siz)
+    DOUBLE PRECISION::Htot, HH
+    INTEGER::ii, jj
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    HH = dtStep
+    Htot = dtot
+    
+    ! Calculate and solve first the coefficients matrix
+    coefs(:, 1) = -HH*ovMatrix(:, 1)*0.5
+    coefs(:, 2) = 1 + HH*ovMatrix(:, 2)*0.5
+    coefs(:, 3) = -HH*ovMatrix(:, 3)*0.5
+    
+    xx = prevSol
+    
+    ! Now solve matrix with the Thomas algorithm
+    coefs(1, 1) = coefs(1, 1)/coefs(1, 2)
+    DO ii = 2, nShells - 1
+        coefs(ii, 1) = coefs(ii, 1)/(coefs(ii, 2) - &
+                                       coefs(ii, 3)*coefs(ii - 1, 1))
+    END DO
+    
+    ! Finally solve diffusive step
+    DO WHILE (Htot.GT.0.D0)
+        ! Create independent array
+        indep(1, :) = xx(1, :)*(1 - HH*ovMatrix(1, 2)*0.5) + &
+                      xx(2, :)*HH*ovMatrix(1, 1)*0.5
+        DO ii = 2, nShells - 1
+            indep(ii, :) = xx(ii - 1, :)*HH*ovMatrix(ii, 3)*0.5 + &
+                           xx(ii, :)*(1 - HH*ovMatrix(ii, 2)*0.5) + &
+                           xx(ii + 1, :)*HH*ovMatrix(ii, 1)*0.5
+        END DO
+        indep(nShells, :) = xx(nShells, :)*(1 - HH*ovMatrix(nShells, 2)*0.5) + &
+                            xx(nShells - 1, :)*HH*ovMatrix(nShells, 3)*0.5
+        
+        ! Now transform it
+        DO ii = 1, siz
+            indep(1, ii) = indep(1, ii)/coefs(1, 2)
+            DO jj = 2, nShells
+                indep(jj, ii) = indep(jj, ii) - &
+                                coefs(jj, 3)*indep(jj - 1, ii)
+                indep(jj, ii) = indep(jj, ii)/(coefs(jj, 2) - &
+                                            coefs(jj, 3)*coefs(jj - 1, 1))
+            END DO
+        END DO
+        
+        ! And use it to solve
+        DO ii = 1, siz
+            xx(nShells, ii) = indep(nShells, ii)
+            DO jj = nShells - 1, 1, -1
+                xx(jj, ii) = indep(jj, ii) - xx(jj + 1, ii)*coefs(jj, 1)
+            END DO
+        END DO
+        
+        Htot = Htot - HH
+        IF (HH.GT.Htot) THEN
+            HH = Htot
+            
+            ! Calculate and solve the coefficients matrix with the new HH
+            coefs(:, 1) = -HH*ovMatrix(:, 1)*0.5
+            coefs(:, 2) = 1 + HH*ovMatrix(:, 2)*0.5
+            coefs(:, 3) = -HH*ovMatrix(:, 3)*0.5
+            
+            ! Now solve matrix with the Thomas algorithm
+            coefs(1, 1) = coefs(1, 1)/coefs(1, 2)
+            DO ii = 2, nShells - 1
+                coefs(ii, 1) = coefs(ii, 1)/(coefs(ii, 2) - &
+                                               coefs(ii, 3)*coefs(ii - 1, 1))
+            END DO
+        END IF
+    END DO
+    
+    solveCrankThomas = xx
+    RETURN
+    
+END FUNCTION solveCrankThomas
 
 END MODULE mixer
