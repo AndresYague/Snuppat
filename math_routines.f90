@@ -303,6 +303,8 @@ END SUBROUTINE createJacobian
 !!! -crosLst, a linked list of CROSSARR types with the network cross         !!!
 !!!            sections.                                                     !!!
 !!! -dens, the shell abundances.                                             !!!
+!!! -kk, production array.                                                   !!!
+!!! -dd, destruction array.                                                  !!!
 !!! -rates, the output rates array.                                          !!!
 !!! -eIndices, an array of type INDICES with the indices of the maximum      !!!
 !!!             contributors to the free electrons in the star.              !!!

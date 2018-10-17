@@ -19,6 +19,7 @@ CONTAINS
 !!! -ntwkMass, an array with the atomic weights of the species in order.     !!!
 !!! -eIndices, an array of type INDICES with the indices of the maximum      !!!
 !!!             contributors to the free electrons in the star.              !!!
+!!! -n1indx, index at which neutrons are.                                    !!!
 !!! -p1indx, index at which protons are.                                     !!!
 !!! -he4indx, index at which he4 is.                                         !!!
 !!! -ovParam, the envelope overshooting parameter.                           !!!
@@ -37,8 +38,8 @@ CONTAINS
 !!! At the output, intShell%dens has the updated abundances.                 !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
-                            eIndices, p1indx, he4indx, ovParam, ovPDCZParam, &
-                            mixFreq, eps, siz, yscale, firstOv, &
+                            eIndices, n1indx, p1indx, he4indx, ovParam, &
+                            ovPDCZParam, mixFreq, eps, siz, yscale, firstOv, &
                             firstIntegShell, lastIntegShell, ovMode, nProc, &
                             rank)
     IMPLICIT NONE
@@ -48,7 +49,7 @@ SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     TYPE (CROSSARR)::crosLst(:)
     TYPE (INDICES)::eIndices(:)
     DOUBLE PRECISION::dt, ovParam, ovPDCZParam, eps, yscale
-    INTEGER::totShell, ntwkMass(:), p1indx, he4indx, mixFreq, siz
+    INTEGER::totShell, ntwkMass(:), n1indx, p1indx, he4indx, mixFreq, siz
     INTEGER::firstIntegShell, lastIntegShell, firstOv, nProc, rank
     CHARACTER(20)::ovMode
     
@@ -79,7 +80,7 @@ SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     END DO
     
     ! Mix convection before starting
-    CALL mixConvection(intShell, totShell, siz)
+    CALL mixConvection(intShell, totShell, n1indx, siz)
     
     ! Create Overshooting Matrix
     IF ((ovParam.GT.0.D0).OR.(ovPDCZParam.GT.0.D0)) THEN
@@ -123,16 +124,16 @@ SUBROUTINE mixedIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
                             lastIntegShell, nProc, rank)
         
         ! Now mix
-        CALL mixConvection(intShell, totShell, siz)
+        CALL mixConvection(intShell, totShell, n1indx, siz)
         
         ! Check if performing overshooting
         IF (.NOT.performOv) CYCLE
         
         CALL applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
-                        firstOv, mixHH, eps, convecIndex, yscale, siz, ovMode, &
-                        nProc, rank)
+                        firstOv, mixHH, n1indx, eps, convecIndex, yscale, siz, &
+                        ovMode, nProc, rank)
         
-        CALL mixConvection(intShell, totShell, siz)
+        CALL mixConvection(intShell, totShell, n1indx, siz)
     END DO
     
     ! Deallocate ovMatrix, ovShell and "dens" in shellCpy

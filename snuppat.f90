@@ -204,7 +204,7 @@ PROGRAM snuppat
         END IF
         
         ! Now create the convective shell and mix
-        CALL storeConvection(liteShell, nLiteShell, siz)
+        CALL storeConvection(liteShell, nLiteShell, n1indx, siz)
         
         ! Integration dt in years
         intDt = (1.D1**t2 - 1.D1**intT1)
@@ -303,7 +303,7 @@ PROGRAM snuppat
             
             ! Integrate proper
             CALL mixedIntegration(intDt, liteShell, nLiteShell, shellReacts, &
-                        ntwkMass, eIndices, p1indx, he4indx, ovParam, &
+                        ntwkMass, eIndices, n1indx, p1indx, he4indx, ovParam, &
                         ovPDCZParam, mixFreq, eps, siz, yscale, firstOv, &
                         firstIntegShell, lastIntegShell, ovMode, nProc, rank)
             
@@ -327,7 +327,7 @@ PROGRAM snuppat
         END IF
         
         ! Final mix and convection cleaning
-        CALL cleanConvection(liteShell, nLiteShell, siz)
+        CALL cleanConvection(liteShell, nLiteShell, n1indx, siz)
         ! ====================================
         
         ! Write data

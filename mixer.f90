@@ -12,22 +12,23 @@ CONTAINS
 !!! The input values are:                                                    !!!
 !!! -intShell, the inter-shell array.                                        !!!
 !!! -totShell, the size of intShell.                                         !!!
+!!! -n1indx, index at which neutrons are.                                    !!!
 !!! -siz, the number of species (size of abundance dimension).               !!!
 !!!                                                                          !!!
 !!! On output intShell is filled and every convective zone is mixed          !!!
 !!! instantaneously. The mixed values are in intShell and the common pointer !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE storeConvection(intShell, totShell, siz)
+SUBROUTINE storeConvection(intShell, totShell, n1indx, siz)
     IMPLICIT NONE
    
     ! Input
     TYPE (INTERSHELL), POINTER::intShell(:)
-    INTEGER::totShell, siz
+    INTEGER::totShell, n1indx, siz
     
     ! Local
     TYPE(INTERSHELL), POINTER::commShell
     DOUBLE PRECISION::convdens(siz), convmass, dm
-    INTEGER::ii
+    INTEGER::ii, jj
     LOGICAL::first
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -108,10 +109,14 @@ SUBROUTINE storeConvection(intShell, totShell, siz)
         IF (ii.GE.totShell) EXIT
     END DO
     
-    ! One more loop to store the mixed abundance in the shells
+    ! One more loop to store the mixed abundance in the shells, but do not mix
+    ! neutrons
     DO ii = 1, totShell - 1
         IF (intShell(ii)%isConvective) THEN
-            intShell(ii)%dens = intShell(ii)%convShell%dens
+            DO jj = 1, siz
+                IF (jj.EQ.n1indx) CYCLE
+                intShell(ii)%dens(jj) = intShell(ii)%convShell%dens(jj)
+            END DO
         END IF
     END DO
     
@@ -527,22 +532,23 @@ END SUBROUTINE diffOvLimit
 !!! The input values are:                                                    !!!
 !!! -intShell, the inter-shell array.                                        !!!
 !!! -totShell, the size of intShell.                                         !!!
+!!! -n1indx, index at which neutrons are.                                    !!!
 !!! -siz, the number of species (size of abundance dimension).               !!!
 !!!                                                                          !!!
 !!! On output all convective zones are instantanously mixed. The values are  !!!
 !!! in the common pointer of convective shells.                              !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE mixConvection(intShell, totShell, siz)
+SUBROUTINE mixConvection(intShell, totShell, n1indx, siz)
     IMPLICIT NONE
    
     ! Input
     TYPE (INTERSHELL)::intShell(:)
-    INTEGER::totShell, siz
+    INTEGER::totShell, n1indx, siz
     
     ! Local
     TYPE(INTERSHELL), POINTER::commShell
     DOUBLE PRECISION::convdens(siz), convmass, dm
-    INTEGER::ii
+    INTEGER::ii, jj
     LOGICAL::first
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -587,10 +593,13 @@ SUBROUTINE mixConvection(intShell, totShell, siz)
         IF (ii.GE.totShell) EXIT
     END DO
     
-    ! Return the mixed values to the intShell
+    ! Return the mixed values to the intShell, but do not mix neutrons
     DO ii = 1, totShell - 1
         IF (intShell(ii)%isConvective) THEN
-            intShell(ii)%dens = intShell(ii)%convShell%dens
+            DO jj = 1, siz
+                IF (jj.EQ.n1indx) CYCLE
+                intShell(ii)%dens(jj) = intShell(ii)%convShell%dens(jj)
+            END DO
         END IF
     END DO
     
@@ -603,30 +612,34 @@ END SUBROUTINE mixConvection
 !!! The input values are:                                                    !!!
 !!! -intShell, the inter-shell array.                                        !!!
 !!! -totShell, the size of intShell.                                         !!!
+!!! -n1indx, index at which neutrons are.                                    !!!
 !!! -siz, the number of species (size of abundance dimension).               !!!
 !!!                                                                          !!!
 !!! On output all convective zones are instantanously mixed and all pointers !!!
 !!! are nullified. The mixed values are in intShell.                         !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE cleanConvection(intShell, totShell, siz)
+SUBROUTINE cleanConvection(intShell, totShell, n1indx, siz)
     IMPLICIT NONE
    
     ! Input
     TYPE (INTERSHELL), POINTER::intShell(:)
-    INTEGER::totShell, siz
+    INTEGER::totShell, n1indx, siz
     
     ! Local
-    INTEGER::ii, iiend
+    INTEGER::ii, iiend, jj
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     ! Start by mixing the convective region
-    CALL mixConvection(intShell, totShell, siz)
+    CALL mixConvection(intShell, totShell, n1indx, siz)
     
-    ! Store the mixed abundance in the shells
+    ! Store the mixed abundance in the shells, but no neutrons
     DO ii = 1, totShell - 1
         IF (intShell(ii)%isConvective) THEN
-            intShell(ii)%dens = intShell(ii)%convShell%dens
+            DO jj = 1, siz
+                IF (jj.EQ.n1indx) CYCLE
+                intShell(ii)%dens(jj) = intShell(ii)%convShell%dens(jj)
+            END DO
         END IF
     END DO
     
@@ -1306,6 +1319,7 @@ END SUBROUTINE createOvArrays
 !!! -nShells, reduced size of ovMatrix.                                      !!!
 !!! -firstOv, first shell affected by overshooting.                          !!!
 !!! -dt, overshooting timestep.                                              !!!
+!!! -n1indx, index at which neutrons are.                                    !!!
 !!! -eps, relative accuracy.                                                 !!!
 !!! -convecIndex, the array holding the indices for the convective zones as  !!!
 !!!               well as the furthermost index they affect.                 !!!
@@ -1319,8 +1333,8 @@ END SUBROUTINE createOvArrays
 !!! convective ones. The common convective pointer is outdated.              !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
-                            firstOv, dt, eps, convecIndex, yscale, siz, &
-                            ovMode, nProc, rank)
+                            firstOv, dt, n1indx, eps, convecIndex, yscale, &
+                            siz, ovMode, nProc, rank)
     IMPLICIT NONE
     
     ! MPI variables
@@ -1329,7 +1343,8 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
     ! Input
     TYPE (INTERSHELL), TARGET::intShell(:), ovShell(:)
     DOUBLE PRECISION::ovMatrix(:, :), dt, eps, yscale
-    INTEGER::totShell, nShells, firstOv, convecIndex(:, :), siz, nProc, rank
+    INTEGER::totShell, nShells, firstOv, n1indx, convecIndex(:, :), siz, nProc
+    INTEGER::rank
     CHARACTER(20)::ovMode
     
     ! Local
@@ -1438,14 +1453,17 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
         ovShell(firstOv + jj - 1)%dens = prevSol(jj, :)
     END DO
     
-    ! Update intShell values
+    ! Update intShell values, skip neutrons
     ii = 1
     entered = .FALSE.
     DO jj = 1, SIZE(ovShell)
         ! Copy convectives
         DO WHILE (intShell(ii)%isConvective)
             IF (.NOT.entered) entered = .TRUE.
-            intShell(ii)%dens = ovShell(jj)%dens
+            DO kk = 1, siz
+                IF (kk.EQ.n1indx) CYCLE
+                intShell(ii)%dens(kk) = ovShell(jj)%dens(kk)
+            END DO
             
             ii = ii + 1
             IF (ii.GE.totShell) EXIT
@@ -1456,7 +1474,10 @@ SUBROUTINE applyOvershooting(intShell, totShell, ovMatrix, ovShell, nShells, &
             ii = ii - 1
             entered = .FALSE.
         ELSE
-            intShell(ii)%dens = ovShell(jj)%dens
+            DO kk = 1, siz
+                IF(kk.EQ.n1indx) CYCLE
+                intShell(ii)%dens(kk) = ovShell(jj)%dens(kk)
+            END DO
         END IF
         
         ! Advance index
