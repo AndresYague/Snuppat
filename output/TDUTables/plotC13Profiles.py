@@ -10,11 +10,11 @@ def main():
     subplotNum = len(sys.argv[1:])
     fig = plt.figure()
     
-    colors = ["b-", "y-"]
-    labels = ["$\omega = 0.08$ Bounded", "$\omega = 0.12$ Boundless"]
+    colors = ["b-", "g-", "y-"]
+    labels = ["$\omega = 0.10$", "$\omega = 0.12$", "$\omega = 0.14$"]
     
     # Plot all the profiles
-    ii = 0
+    ii = 0; maxSaveMass = 0
     for arch in sys.argv[1:]:
         # Read event
         fread = open(arch, "r")
@@ -26,75 +26,60 @@ def main():
         lastMass = 0
         maxProfileHeight = 0
         mass = []; profile = []
-        maxMass = []; maxProfile = []
+        maxProfile = []
+        c13Count = 0; c13TotMass = 0
         while True:
             line = fread.readline()
             label = arch
             
             if "#" not in line and len(line) > 0:
                 lnlst = line.split()
+                if len(lnlst) == 0:
+                    continue
+                
                 mass.append(float(lnlst[0]))
                 profile.append(float(lnlst[1]))
-            
-            if "# Profile" in line:
-                if len(mass) > 0:
-                    # Store the largest profile
-                    maxHeight = max(profile)
-                    if maxHeight > maxProfileHeight and profile[-1] <= 0:
-                        maxProfileHeight = maxHeight
-                        maxMass = mass
-                        maxProfile = profile
                 
-                mass = []; profile = []
-            
-            if "# TDU" in line or len(line) == 0:
-                # Recover mass and profile
-                mass = maxMass
-                profile = maxProfile
+            elif len(mass) > 0:
+                # Count one c13 pocket more
+                c13Count += 1
+                
+                # Add the mass to the maximum
+                c13TotMass += max(mass) - min(mass)
                 
                 # Shift mass so profiles are consecutive
-                if len(mass) > 0:
-                    mass0 = mass[0]
-                    mass = [x - mass0 + lastMass for x in mass]
+                mass0 = mass[0]
+                mass = [x - mass0 + lastMass for x in mass]
+                
+                # Plot
+                if isFirstPlot:
+                    ax.plot(mass, profile, colors[ii - 1], lw = 2,
+                            label = labels[ii - 1])
+                    isFirstPlot = False
                     
-                    # Plot
-                    if isFirstPlot:
-                        ax.set_ylabel("Mass fraction")
-                        ax.plot(mass, profile, colors[ii - 1], lw = 2,
-                                label = labels[ii - 1])
-                        isFirstPlot = False
-                        
-                    else:
-                        ax.plot(mass, profile, colors[ii - 1], lw = 2)
-                    
-                    # Modify lastMass
-                    lastMass += mass[-1] - mass[0]
+                else:
+                    ax.plot(mass, profile, colors[ii - 1], lw = 2)
+                
+                # Modify lastMass
+                lastMass += mass[-1] - mass[0]
                 
                 # Restart variables
-                saveMass = mass
+                saveMass = mass; mass = []
                 maxProfileHeight = 0
-                maxMass = []; mass = []
                 maxProfile = []; profile = []
                 
                 # Exit if last line
                 if len(line) == 0:
                     break
+                mass = []; profile = []
+        
+        if max(saveMass) > maxSaveMass:
+            maxSaveMass = max(saveMass)
         
         ax.yaxis.set_major_locator(ticker.MultipleLocator(1e-2))
         ax.xaxis.set_major_locator(ticker.MaxNLocator(prune = "both"))
-        ax.set_xlim([0, max(saveMass)*1.1])
         ax.set_ylim([0, ax.get_ylim()[1]])
-        ax.legend(loc = 0)
-        
-        # Clean xaxis
-        xticks = list(ax.get_xticks())
-        newXticks = []
-        for elem in xticks:
-            if len(newXticks) == 0 or abs(elem - newXticks[-1]) >= 5.001e-5:
-                newXticks.append(elem)
-            
-        
-        ax.set_xticks(newXticks)
+        ax.legend()
         
         # Prune the yaxis
         yLim = ax.get_ylim()
@@ -104,8 +89,26 @@ def main():
         ax.set_yticks(yticks)
         
         fread.close()
+        
+        # Print the average size
+        if c13Count > 0:
+            avgMass = c13TotMass/c13Count
+            print "Average pocket mass in {} = {}".format(arch, avgMass)
     
+    # Fix axes
+    ii = 0
+    for axi in fig.axes:
+        axi.set_xlim([0, maxSaveMass*1.1])
+        
+        # Set central ylabel
+        if ii == 1:
+            axi.set_ylabel("Mass fraction")
+        
+        ii += 1
+    
+    fig.subplots_adjust(hspace = 0)
     ax.set_xlabel("Mass (M$_\odot$)")
+    
     plt.show()
 
 if __name__ == "__main__":

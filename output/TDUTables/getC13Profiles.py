@@ -84,124 +84,73 @@ def getCoreMass(model, speciesDict):
     as the point where H < 0.1*maxH'''
     
     hindx = speciesDict["p1"]
-    mass = []; hydro = []; temp = []
-    h2 = None; m2 = None; t2 = None
+    mass = []; hydro = []
+    h2 = None; m2 = None
     for ii in range(model[0][3]):
         h1 = model[ii + 1][hindx]
         m1 = model[ii + 1][0]
-        t1 = model[ii + 1][1]*1e3
         if h2 is None:
-            h2 = h1; m2 = m1; t2 = t1
+            h2 = h1; m2 = m1
             continue
         
         hydro.append((h1 + h2)*0.5)
         mass.append((m1 + m2)*0.5)
-        temp.append((t1 + t2)*0.5)
-        h2 = h1; m2 = m1; t2 = t1
+        h2 = h1; m2 = m1
     
     maxHydr = max(hydro)
     ii = len(hydro) - 1
     while ii > -1:
         if hydro[ii] <= 1e-1*maxHydr:
-            return mass[ii]*model[0][1], temp[ii]
+            return mass[ii]*model[0][1]
         
         ii -= 1
     
-    return None, None
+    return None
 
-def getBCEMass(model, speciesDict):
-    '''Return the BCE mass of this model, defined
-    as the last convective poin where H ~ maxH'''
-    
-    hindx = speciesDict["p1"]
-    mass = []; hydro = []; temp = []; radiat = []
-    h2 = None; m2 = None; t2 = None; rad2 = None
-    for ii in range(model[0][3]):
-        h1 = model[ii + 1][hindx]
-        m1 = model[ii + 1][0]
-        t1 = model[ii + 1][1]*1e3
-        rad1 = model[ii + 1][3]
-        if h2 is None:
-            h2 = h1; m2 = m1; t2 = t1; rad2 = rad1
-            continue
-        
-        hydro.append((h1 + h2)*0.5)
-        mass.append((m1 + m2)*0.5)
-        temp.append((t1 + t2)*0.5)
-        radiat.append((rad1 + rad2)*0.5)
-        h2 = h1; m2 = m1; t2 = t1; rad2 = rad1
-    
-    maxHydr = max(hydro)
-    ii = len(hydro) - 1
-    bceMass, bceTemp = None, None
-    while ii > -1:
-        if hydro[ii] >= (maxHydr*.9) and radiat[ii] > 0:
-            bceMass = mass[ii]*model[0][1]
-            bceTemp = temp[ii]
-        
-        ii -= 1
-    
-    return bceMass, bceTemp
-
-# TODO Make BCE temperature too?
-def getMaximumTemperature(model):
-    '''Return the maximum temperature'''
-    
-    temp = []
-    t2 = None
-    for ii in range(model[0][3]):
-        t1 = model[ii + 1][1]*1e3
-        if t2 is None:
-            t2 = t1
-            continue
-        
-        temp.append((t1 + t2)*0.5)
-        t2 = t1
-    
-    return max(temp)
-
-def getIntershellC12O16(model, coreMass, speciesDict):
-    '''Return the intershell c12 and o16'''
+def getPocket(model, coreMass, speciesDict):
+    '''Return the effective c13 pocket'''
     
     # Store values
-    c12Indx = speciesDict["c12"]
-    o16Indx = speciesDict["o16"]
-    he4Indx = speciesDict["he4"]
-    mass = []; c12 = []; o16 = []; he4 = []
-    c122 = None; he42 = None; m2 = None
+    c13Indx = speciesDict["c13"]
+    n14Indx = speciesDict["n14"]
+    p1Indx = speciesDict["p1"]
+    mass = []; c13 = []; n14 = []; p1 = []
+    c132 = None; n142 = None; p12 = None; m2 = None
     for ii in range(model[0][3]):
-        c121 = model[ii + 1][c12Indx]*12
-        o161 = model[ii + 1][o16Indx]*16
-        he41 = model[ii + 1][he4Indx]*4
+        c131 = model[ii + 1][c13Indx]
+        n141 = model[ii + 1][n14Indx]
+        p11 = model[ii + 1][p1Indx]
         m1 = model[ii + 1][0]
-        if c122 is None:
-            c122 = c121; o162 = o161; he42 = he41; m2 = m1
+        if c132 is None:
+            c132 = c131; n142 = n141; p12 = p11; m2 = m1
             continue
         
-        c12.append((c121 + c122)*0.5)
-        o16.append((o161 + o162)*0.5)
-        he4.append((he41 + he42)*0.5)
+        c13.append((c131 + c132)*0.5)
+        n14.append((n141 + n142)*0.5)
+        p1.append((p11 + p12)*0.5)
         mass.append((m1 + m2)*0.5)
-        c122 = c121; o162 = o161; m2 = m1; he42 = he41
+        c132 = c131; n142 = n141; m2 = m1
     
-    # Now look for intershell value
-    maxHe = max(he4); avgC12 = 0; avgO16 = 0; totMass = 0
-    for ii in range(len(c12)):
-        if abs(he4[ii] - maxHe) < 0.4*maxHe:
-            if he4[ii] > c12[ii] and c12[ii] > 0.1:
-                avgC12 += c12[ii]*mass[ii]
-                avgO16 += o16[ii]*mass[ii]
-                totMass += mass[ii]
+    # Now look for effective c13Pocket
+    m0 = None; m1 = None; maxp1 = 0
+    effPock = []; width = 0
+    for ii in range(len(mass)):
+        effC13 = 13*(c13[ii] - n14[ii])
+        
+        if effC13 > 1.e-3:
+            effPock.append((mass[ii], effC13))
+            
+            if p1[ii] > maxp1:
+                maxp1 = p1[ii]
+            
+            m1 = mass[ii]
+            if m0 is None:
+                m0 = mass[ii]
     
-    try:
-        avgC12 /= totMass
-        avgO16 /= totMass
-    except ZeroDivisionError:
-        pass
-    except:
-        raise
+    if m0 is not None:
+        width = m1 - m0
     
-    return avgC12, avgO16
+    return effPock, width, maxp1
 
 def getTDUMass(binObj, speciesDict, massTh):
     '''Finds next core masses'''
@@ -212,28 +161,24 @@ def getTDUMass(binObj, speciesDict, massTh):
     totMass = None
     maxCoreMass = 0
     minCoreMass = 0
-    maxTDUTemp = 0
-    maxTempBCE = 0
-    maxTempHyd = 0
-    maxC12 = 0
-    maxO16 = 0
+    maxWidth = 0
+    maxC13Pocket = None
     prevModNum = 0
     
     # Read model
     while True:
         newModel = binObj.nextModel()
+        
         if not newModel:
             break
         
         model = binObj.model
         
-        # Get core and BCE mass
-        coreMass, tempHyd = getCoreMass(model, speciesDict)
-        BCEMass, tempBCE = getBCEMass(model, speciesDict)
+        # Get core mass
+        coreMass = getCoreMass(model, speciesDict)
+        
         if coreMass is None:
             raise Exception("Core mass not found!")
-        if BCEMass is None:
-            raise Exception("BCE mass not found!")
         
         if coreMass > maxCoreMass and not inTDU:
             maxCoreMass = coreMass
@@ -248,29 +193,13 @@ def getTDUMass(binObj, speciesDict, massTh):
         else:
             inTDU = False
         
-        # Get intershell c12 and o16
-        intC12, intO16 = getIntershellC12O16(model, coreMass, speciesDict)
-        if intC12 is None:
-            raise Exception("C12 value not found!")
-        if intO16 is None:
-            raise Exception("O16 value not found!")
+        # Get effective c13 pocket if any
+        c13Pocket, width, maxp1 = getPocket(model, coreMass, speciesDict)
         
-        # Get maximum intershell c12 and o16
-        if intC12 > maxC12:
-            maxC12 = intC12
-        if intO16 > maxO16:
-            maxO16 = intO16
-        
-        # Get maximum temperatures
-        if tempHyd > maxTempHyd:
-            maxTempHyd = tempHyd
-        
-        if tempBCE > maxTempBCE:
-            maxTempBCE = tempBCE
-        
-        maxTemp = getMaximumTemperature(model)
-        if maxTemp > maxTDUTemp:
-            maxTDUTemp = maxTemp
+        # Select maximum width effective c13 pocket
+        if maxp1 < 1e-6 and width > maxWidth:
+            maxC13Pocket = c13Pocket
+            maxWidth = width
         
         if not inTDU and foundTDU:
             break
@@ -281,9 +210,7 @@ def getTDUMass(binObj, speciesDict, massTh):
         
         prevModNum = model[0][0]
     
-    val = (maxCoreMass, minCoreMass, totMass, maxTDUTemp, maxTempBCE,
-            maxTempHyd, maxC12, maxO16)
-    return val
+    return maxCoreMass, minCoreMass, maxC13Pocket, totMass
 
 def main():
     '''Main program'''
@@ -306,26 +233,30 @@ def main():
     
     prevMinCore = None
     # Look for max and min core mass
-    print "Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass,",
-    print "Envelope mass, Dredged Mass, C12, O16 ;",
-    print "Mass Threshold = {}".format(massTh)
+    print "# Mass Threshold = {}".format(massTh)
     while True:
         val = getTDUMass(binObj, speciesDict, massTh)
-        maxCoreM, minCoreM, totMass, temp, tempBCE, tempHyd, c12, o16 = val
-        if maxCoreM == 0 or totMass is None:
+        maxCoreMass, minCoreMass, maxPocket, totMass = val
+        if maxCoreMass == 0 or totMass is None:
             break
         
         if prevMinCore is None:
-            prevMinCore = minCoreM
+            prevMinCore = minCoreMass
             continue
         
-        coreGrowth = maxCoreM - prevMinCore
-        dredg = maxCoreM - minCoreM
+        coreGrowth = maxCoreMass - prevMinCore
+        dredg = maxCoreMass - minCoreMass
         lambd = dredg/coreGrowth
         
-        prevMinCore = minCoreM
-        print lambd, temp, tempBCE, tempHyd, minCoreM,
-        print totMass - minCoreM, dredg, c12, o16
+        prevMinCore = minCoreMass
+        print "# Lambda = {}; Core Mass = {}".format(lambd, minCoreMass)
+        if maxPocket is None:
+            print "# --"
+        else:
+            for elem in maxPocket:
+                print elem[0]*totMass, elem[1]
+        
+        print
 
 if __name__ == "__main__":
     main()

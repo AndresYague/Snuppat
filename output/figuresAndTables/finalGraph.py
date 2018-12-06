@@ -126,7 +126,6 @@ def main():
     xx = [x for x in zList if x >= lowZ]
     
     # Print final values
-    print "Numerical values per file: "
     for ii in range(len(sys.argv[2:])):
         print "# {}".format(sys.argv[ii + 2])
         print ""

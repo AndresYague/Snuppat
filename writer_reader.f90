@@ -424,21 +424,17 @@ SUBROUTINE writeData(model, totShell, modelNum, mass, age)
     ! Write to output
     
     ! Open file
-    OPEN(UNIT = uni2, FILE = output, POSITION = "APPEND")
+    OPEN(UNIT = uni2, FILE = output, POSITION = "APPEND", &
+        FORM = "UNFORMATTED", ACCESS = "STREAM")
     
     ! First, write model number and mass
-    WRITE(uni2, *) "# Model number = ", modelNum
-    WRITE(uni2, *) "# Mass = ", mass
-    WRITE(uni2, *) "# Age = ", age
+    WRITE(uni2) modelNum, mass, age, totShell, 4+SIZE(model(1)%dens)
     
     ! Now write everything else
     DO ii = 1, totShell
-        WRITE(uni2, *) model(ii)%mass/mass, model(ii)%temp, model(ii)%rho, &
+        WRITE(uni2) model(ii)%mass/mass, model(ii)%temp, model(ii)%rho, &
                        model(ii)%radiat, model(ii)%dens
     END DO
-    
-    ! Space
-    WRITE(uni2, *)
     
     ! Close file
     CLOSE(uni2)

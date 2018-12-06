@@ -23,6 +23,7 @@ tags
 
 # Ignore several files
 *.dat
+*.datBIN
 *.datYields
 *.TAB
 *.mp4
