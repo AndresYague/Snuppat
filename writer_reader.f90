@@ -12,19 +12,25 @@ CONTAINS
 !!!                                                                          !!!
 !!! The input values are:                                                    !!!
 !!! -model, SHELL type array to store the physics and chemistry.             !!!
+!!! -exShells, INTERSHELL type with the extra c13 shells.                    !!!
 !!! -age, first model age.                                                   !!!
+!!! -lowMass, low mass limit on the extra shells.                            !!!
+!!! -upMass, up mass limit on the extra shells.                              !!!
 !!! -localNtwk, relation between indices and names for our network.          !!!
 !!! -modelNum, initial model number.                                         !!!
 !!! -Metallicity Z in mass fraction, initial model number.                   !!!
 !!! -n1indx, neutrons index.                                                 !!!
 !!! -isPulse, holds true if in a pulse.                                      !!!
+!!! -lastConv, bool saying if there was a last convective in the C13         !!!
+!!!   extension.                                                             !!!
+!!! -cont, bool saying if continuing from contChem.dat                       !!!
 !!! -siz, the number of species (size of dens).                              !!!
 !!! -rank, this thread index.                                                !!!
 !!!                                                                          !!!
 !!! At the output, model, age, localNtwk, and modelNum are given values.     !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
-                        isPulse, siz, cont, rank)
+SUBROUTINE initialModel(model, exShells, age, lowMass, upMass, localNtwk, &
+              modelNum, metallicity, n1indx, isPulse, lastConv, siz, cont, rank)
     IMPLICIT NONE
     
     ! MPI variables
@@ -32,9 +38,10 @@ SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
     
     ! Input
     TYPE (SHELL), POINTER::model(:)
-    DOUBLE PRECISION::age, metallicity
+    TYPE (INTERSHELL), POINTER::exShells(:)
+    DOUBLE PRECISION::age, metallicity, lowMass, upMass
     INTEGER::localNtwk(:), modelNum, n1indx, siz, rank
-    LOGICAL::isPulse, cont
+    LOGICAL::lastConv, isPulse, cont
     
     ! Local
     TYPE (SHELL), POINTER::abundncs(:)
@@ -44,8 +51,8 @@ SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
     CHARACTER(3), ALLOCATABLE::names(:), names2(:), names3(:)
     CHARACTER::answer
     DOUBLE PRECISION::mass, factor, zz
-    INTEGER::chemshells, atonsiz, solarsiz, ii, jj, inModNum
-    LOGICAL::exst, isPhysMod, isMaster
+    INTEGER::chemshells, atonsiz, solarsiz, ii, jj, inModNum, extraSize
+    LOGICAL::exst, isPhysMod, isMaster, useExtra
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF DECLARATIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -217,16 +224,20 @@ SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
     ! Start from contChem.dat
         OPEN(UNIT = uni2, FILE = contChem)
         
+        ! Now read the extra shells if they exist
+        READ(uni2, *) useExtra, lastConv, extraSize, lowMass, upMass
+        IF (useExtra) THEN
+            ALLOCATE(exShells(extraSize))
+            DO ii = 1, extraSize
+                ALLOCATE(exShells(ii)%dens(siz))
+                READ(uni2, *) exShells(ii)%mass0, exShells(ii)%mass1, &
+                    exShells(ii)%isConvective, exShells(ii)%dens
+            END DO
+        END IF
+        
         READ(uni2, *) inModNum, mass, chemshells
         
         ALLOCATE(abundncs(chemshells))
-        
-        ! Read the local network
-        OPEN(UNIT = uni3, FILE = species)
-        DO ii = 1, siz
-            READ(uni3, *) localNtwk(ii)
-        END DO
-        CLOSE(UNIT = uni3)
         
         ! Fill the array
         DO ii = 1, chemshells
@@ -240,6 +251,13 @@ SUBROUTINE initialModel(model, age, localNtwk, modelNum, metallicity, n1indx, &
         
         ! Close chemistry file
         CLOSE(UNIT = uni2)
+        
+        ! Read the local network
+        OPEN(UNIT = uni3, FILE = species)
+        DO ii = 1, siz
+            READ(uni3, *) localNtwk(ii)
+        END DO
+        CLOSE(UNIT = uni3)
     END IF
     
     ! Chemistry done, now to physics
@@ -402,19 +420,27 @@ END FUNCTION readPhysMod
 !!!                                                                          !!!
 !!! The input values are:                                                    !!!
 !!! -model, SHELL type array storing the physics and chemistry.              !!!
+!!! -exShells, INTERSHELL type with the extra c13 shells.                    !!!
 !!! -totShell, size of model.                                                !!!
 !!! -modelNum, model number.                                                 !!!
 !!! -mass, model mass.                                                       !!!
 !!! -age, model age.                                                         !!!
+!!! -lowMass, low mass limit on the extra shells.                            !!!
+!!! -upMass, up mass limit on the extra shells.                              !!!
+!!! -lastConv, bool saying if there was a last convective in the C13         !!!
+!!!   extension.                                                             !!!
 !!!                                                                          !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-SUBROUTINE writeData(model, totShell, modelNum, mass, age)
+SUBROUTINE writeData(model, exShells, totShell, modelNum, mass, age, lowMass, &
+        upMass, lastConv)
     IMPLICIT NONE
     
     ! Input
     TYPE (SHELL), POINTER::model(:)
-    DOUBLE PRECISION::mass, age
+    TYPE (INTERSHELL), POINTER::exShells(:)
+    DOUBLE PRECISION::mass, age, lowMass, upMass
     INTEGER::totShell, modelNum
+    LOGICAL::lastConv
     
     ! Local
     INTEGER::ii
@@ -428,7 +454,7 @@ SUBROUTINE writeData(model, totShell, modelNum, mass, age)
         FORM = "UNFORMATTED", ACCESS = "STREAM")
     
     ! First, write model number and mass
-    WRITE(uni2) modelNum, mass, age, totShell, 4+SIZE(model(1)%dens)
+    WRITE(uni2) modelNum, mass, age, totShell, 4 + SIZE(model(1)%dens)
     
     ! Now write everything else
     DO ii = 1, totShell
@@ -443,6 +469,18 @@ SUBROUTINE writeData(model, totShell, modelNum, mass, age)
     
     ! Open file
     OPEN(UNIT = uni2, FILE = contChem)
+    
+    ! Write first if exShells are allocated, lastConv, and the size. Then write
+    ! the masses, convective regions and abundances.
+    IF (ASSOCIATED(exShells)) THEN
+        WRITE(uni2, *) .TRUE., lastConv, SIZE(exShells), lowMass, upMass
+        DO ii = 1, SIZE(exShells)
+            WRITE(uni2, *) exShells(ii)%mass0, exShells(ii)%mass1, &
+                exShells(ii)%isConvective, exShells(ii)%dens
+        END DO
+    ELSE
+        WRITE(uni2, *) .FALSE., .FALSE., 0, 0, 0
+    END IF
 
     ! Write model, mass and number of shells
     WRITE(uni2, *) modelNum, mass, totShell

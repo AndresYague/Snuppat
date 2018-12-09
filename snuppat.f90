@@ -132,8 +132,8 @@ PROGRAM snuppat
     ! Prepare first model
     IF (isMaster) PRINT*, "# Preparing first model"
     cont = .FALSE.
-    CALL initialModel(model, t1, ntwkMass, modNum, metallicity, n1indx, &
-                      isPulse, siz, cont, rank)
+    CALL initialModel(model, extraShells, t1, lowMass, upMass, ntwkMass, &
+        modNum, metallicity, n1indx, isPulse, lastConv, siz, cont, rank)
     totShell = SIZE(model)
     
     ! Output blank division for actual integration
@@ -339,7 +339,8 @@ PROGRAM snuppat
                 CALL undoTransformations(intShell, model, totShell)
                 
                 PRINT*, "# Writing model", modNum
-                CALL writeData(model, totShell, modNum, mass, t2)
+                CALL writeData(model, extraShells, totShell, modNum, mass, t2, &
+                    lowMass, upMass, lastConv)
             END IF
         END IF
         
