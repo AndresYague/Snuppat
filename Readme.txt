@@ -8,10 +8,6 @@ To compile the code a Makefile is included with the source, although it may be
 compiled by hand. Also, a bash script was created to run the code containing a
 rudimentary warning.
 
-The "data" directory referred by some parts of the code is too big to upload
-to GitHub. It contains the network and reaction lists. For further
-information, please contact the author.
-
 In order to run the code, an input file named "parameters.in" must be written.
 The input file must have a specific layout. A template is detailed below.
 
