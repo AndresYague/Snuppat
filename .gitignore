@@ -31,8 +31,5 @@ tags
 *.png
 *.tar.gz
 
-# Ignore data
-data/*
-
 # Ignore callgrind output
 callgrind*
