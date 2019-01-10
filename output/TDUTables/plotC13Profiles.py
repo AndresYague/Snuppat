@@ -93,7 +93,8 @@ def main():
         # Print the average size
         if c13Count > 0:
             avgMass = c13TotMass/c13Count
-            print "Average pocket mass in {} = {}".format(arch, avgMass)
+            print "# Average pocket mass in {} = {}".format(arch, avgMass)
+            print ""
     
     # Fix axes
     ii = 0
@@ -102,7 +103,7 @@ def main():
         
         # Set central ylabel
         if ii == 1:
-            axi.set_ylabel("Mass fraction")
+            axi.set_ylabel("Effective $^{{13}}$C mass fraction")
         
         ii += 1
     

@@ -245,7 +245,6 @@ def main():
     cMasses = (0.3, 0.4, 0.5)
     
     firstAge = None
-    firstMod = None
     ageArr = []; modNumArr = []; convRegArr = []
     carbonMassArr = []; envMassArr = []
     while True:
@@ -253,14 +252,13 @@ def main():
         age, modNum, convReg, carbonMass, envMass, cont = vals
         if firstAge is None:
             firstAge = age
-            firstMod = modNum
             for mass in carbonMass:
                 carbonMassArr.append([])
             
             lenCarbon = len(carbonMass)
         
         ageArr.append(age - firstAge)
-        modNumArr.append(modNum - firstMod)
+        modNumArr.append(modNum)
         convRegArr.append(convReg)
         for ii in range(len(carbonMass)):
             carbonMassArr[ii].append(carbonMass[ii])

@@ -143,7 +143,6 @@ def getBCEMass(model, speciesDict):
     
     return bceMass, bceTemp
 
-# TODO Make BCE temperature too?
 def getMaximumTemperature(model):
     '''Return the maximum temperature'''
     

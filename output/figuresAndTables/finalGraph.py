@@ -81,17 +81,27 @@ def main():
         numDens.append([(x + y)*0.5 for (x, y) in
                         zip(prevline[4:], newline[4:])])
     
-    # Calculate now the agb values
+    # Calculate now the agb values and print the surface mass fractions per
+    # each isotope
+    print "# Surface number fraction values"
     agbValues = []
-    for dens in numDens:
+    for ii in range(len(numDens)):
         dic = {}
+        dens = numDens[ii]
+        
+        # Print the model name
+        print "# {}".format(sys.argv[ii + 2])
      
         # Add the values for each element
-        for ii in range(len(atomicNum)):
-            key = atomicNum[ii]
-            dic[key] = dic.get(key, 0) + dens[ii]*atomicMass[ii]
+        for jj in range(len(atomicNum)):
+            key = atomicNum[jj]
+            dic[key] = dic.get(key, 0) + dens[jj]*atomicMass[jj]
+            
+            # Print the number fraction
+            print dens[jj]
         
         agbValues.append(dic)
+        print ""
     
     # Now identify iron:
     ironNumber = namesZ["fe"]
@@ -126,6 +136,7 @@ def main():
     xx = [x for x in zList if x >= lowZ]
     
     # Print final values
+    print "# [X/Fe] values"
     for ii in range(len(sys.argv[2:])):
         print "# {}".format(sys.argv[ii + 2])
         print ""
