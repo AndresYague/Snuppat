@@ -202,7 +202,7 @@ def getIntershellC12O16(model, coreMass, speciesDict):
     
     return avgC12, avgO16
 
-def getTDUMass(binObj, speciesDict, massTh):
+def getTDUMass(binObj, speciesDict, massTh, ageThreshold):
     '''Finds next core masses'''
     
     # For storage
@@ -219,12 +219,16 @@ def getTDUMass(binObj, speciesDict, massTh):
     prevModNum = 0
     
     # Read model
+    tduAge = None
     while True:
         newModel = binObj.nextModel()
         if not newModel:
             break
         
         model = binObj.model
+        
+        # Age
+        currAge = 10**binObj.head[2]
         
         # Get core and BCE mass
         coreMass, tempHyd = getCoreMass(model, speciesDict)
@@ -240,11 +244,12 @@ def getTDUMass(binObj, speciesDict, massTh):
         elif (maxCoreMass - coreMass) > massTh:
             inTDU = True
             foundTDU = True
+            tduAge = currAge
             if coreMass < minCoreMass:
                 minCoreMass = coreMass
                 totMass = model[0][1]
             
-        else:
+        elif foundTDU and (currAge - tduAge) > ageThreshold:
             inTDU = False
         
         # Get intershell c12 and o16
@@ -293,9 +298,15 @@ def main():
     
     # Get mass threshold
     if len(sys.argv) > 2:
-        massTh= float(sys.argv[2])
+        massTh = float(sys.argv[2])
     else:
-        massTh= 4e-5
+        massTh = 4e-5
+    
+    # Get age threshold
+    if len(sys.argv) > 3:
+        ageThreshold = float(sys.argv[3])
+    else:
+        ageThreshold = 4e4
     
     species = "../../data/species.dat"
     speciesDict = getSpeciesDict(species, 4)
@@ -307,9 +318,10 @@ def main():
     # Look for max and min core mass
     print "Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass,",
     print "Envelope mass, Dredged Mass, C12, O16 ;",
-    print "Mass Threshold = {}".format(massTh)
+    print "Mass Threshold (Msun) = {:.2E}".format(massTh),
+    print " Age Threshold (years) = {:.2E}".format(ageThreshold)
     while True:
-        val = getTDUMass(binObj, speciesDict, massTh)
+        val = getTDUMass(binObj, speciesDict, massTh, ageThreshold)
         maxCoreM, minCoreM, totMass, temp, tempBCE, tempHyd, c12, o16 = val
         if maxCoreM == 0 or totMass is None:
             break

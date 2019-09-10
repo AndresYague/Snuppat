@@ -33,10 +33,19 @@ class readAsciiModels(object):
         ii = 1
         model = [[]]
         
+        # Remember position in case we have to go back
+        pos = self.fread.tell()
         line = self.fread.readline().split()
         nCols = len(line)
         while len(line) > 0:
+            if "#" in line:
+                # "Unread" the line
+                self.fread.seek(pos)
+                break
+            
             model.append([float(x) for x in line])
+            
+            pos = self.fread.tell()
             line = self.fread.readline().split()
             ii += 1
         

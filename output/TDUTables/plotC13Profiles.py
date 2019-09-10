@@ -20,8 +20,11 @@ def main():
         fread = open(arch, "r")
         
         # Add subplot
-        ii += 1; isFirstPlot = True
+        ii += 1
         ax = fig.add_subplot(subplotNum, 1, ii)
+        
+        if ii == 1:
+            ax.text(0.0020, 0.02, "4M$_\odot$", fontsize = 16)
         
         lastMass = 0
         maxProfileHeight = 0
@@ -52,13 +55,8 @@ def main():
                 mass = [x - mass0 + lastMass for x in mass]
                 
                 # Plot
-                if isFirstPlot:
-                    ax.plot(mass, profile, colors[ii - 1], lw = 2,
-                            label = labels[ii - 1])
-                    isFirstPlot = False
-                    
-                else:
-                    ax.plot(mass, profile, colors[ii - 1], lw = 2)
+                ax.plot(mass, profile, colors[ii - 1], lw = 2,
+                        label = labels[ii - 1])
                 
                 # Modify lastMass
                 lastMass += mass[-1] - mass[0]
@@ -78,15 +76,21 @@ def main():
         
         ax.yaxis.set_major_locator(ticker.MultipleLocator(1e-2))
         ax.xaxis.set_major_locator(ticker.MaxNLocator(prune = "both"))
-        ax.set_ylim([0, ax.get_ylim()[1]])
-        ax.legend()
         
-        # Prune the yaxis
+        # Make labels invisible if ii < maximum:
+        if ii < len(sys.argv[1:]):
+            [label.set_visible(False) for label in ax.get_xticklabels()]
+        
+        ax.set_ylim([0, ax.get_ylim()[1]])
+        ax.legend(prop = {"size": 12})
+        
+        # Prune the yaxis except for last plot
         yLim = ax.get_ylim()
         yticks = list(ax.get_yticks())
         yticks = [x for x in yticks if x >= yLim[0] and x <= yLim[1]*1.1]
-        yticks.pop(0); yticks.pop()
-        ax.set_yticks(yticks)
+        if ii < len(sys.argv[1:]):
+            yticks.pop(0)
+            ax.set_yticks(yticks)
         
         fread.close()
         
@@ -103,12 +107,12 @@ def main():
         
         # Set central ylabel
         if ii == 1:
-            axi.set_ylabel("Effective $^{{13}}$C mass fraction")
+            axi.set_ylabel("Effective $^{{13}}$C mass fraction", size = 12)
         
         ii += 1
     
     fig.subplots_adjust(hspace = 0)
-    ax.set_xlabel("Mass (M$_\odot$)")
+    ax.set_xlabel("Mass (M$_\odot$)", size = 12)
     
     plt.show()
 

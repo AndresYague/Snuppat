@@ -242,7 +242,7 @@ def main():
     binObj = readBinaryModels(sys.argv[1])
     
     # Define carbon masses
-    cMasses = (0.3, 0.4, 0.5)
+    cMasses = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
     
     firstAge = None
     ageArr = []; modNumArr = []; convRegArr = []
@@ -260,7 +260,7 @@ def main():
         ageArr.append(age - firstAge)
         modNumArr.append(modNum)
         convRegArr.append(convReg)
-        for ii in range(len(carbonMass)):
+        for ii in range(lenCarbon):
             carbonMassArr[ii].append(carbonMass[ii])
         envMassArr.append(envMass)
         
@@ -268,20 +268,22 @@ def main():
             break
         
         print len(ageArr)
+        #if modNumArr[-1] > 40000:
+            #break
     
-    xxArr = modNumArr
-    #xxArr = ageArr
+    #xxArr = modNumArr
+    xxArr = ageArr
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
     plotConve(ax, xxArr, convRegArr)
     for ii in range(lenCarbon):
         ax.plot(xxArr, carbonMassArr[ii], lw = 2,
-                label = "{}".format(cMasses[ii]))
-    ax.plot(xxArr, envMassArr, lw = 2)
+                label = "XC12 = {}".format(cMasses[ii]))
+    ax.plot(xxArr, envMassArr, lw = 2, label = "H exhausted core")
     
-    ax.set_xlabel("Model number")
-    #ax.set_xlabel("Time in yrs")
+    #ax.set_xlabel("Model number")
+    ax.set_xlabel("Time in yrs")
     ax.set_ylabel("M/M$_\odot$")
     
     plt.legend(loc = 0)

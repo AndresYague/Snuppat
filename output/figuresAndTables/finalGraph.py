@@ -3,21 +3,27 @@ import matplotlib.pyplot as plt
 
 def main():
     # Check that there's at least one argument
-    if len(sys.argv) < 3:
-        print "Usage python {} <title>".format(sys.argv[0]),
+    if len(sys.argv) < 2:
+        print "Usage python {}".format(sys.argv[0]),
         print "<file1> [<file2> ...]"
         return 1
     
+    # Automatically detect if decayed
+    if "decayed" in sys.argv[1]:
+        plotDecayed = True
+    else:
+        plotDecayed = False
+    
     # Read input file
-    if os.path.isfile("finalGraph.in"):
-        with open("finalGraph.in", "r") as fread:
+    fil = "finalGraph.in"
+    if os.path.isfile(fil):
+        with open(fil, "r") as fread:
             lstyles = fread.readline().strip().split()
             
             labs = []
             for line in fread:
                 labs.append(line.strip())
     
-    title = sys.argv[1]
     lowZ = 27 # Lowest z value to represent
     
     # Read "species.dat" and store all the values in lists
@@ -52,9 +58,10 @@ def main():
     
     # Go file by file
     numDens = []
-    for archivo in sys.argv[2:]:
+    for archivo in sys.argv[1:]:
         
         # Open file for reading
+        dens = []
         fread = open(archivo, "r")
         
         # Each line has mass, temperature, rho, radiat
@@ -66,20 +73,30 @@ def main():
             
             lnlst = line.split()
             if len(lnlst) == 0:
-                continue
+                if plotDecayed:
+                    break
+                else:
+                    continue
             
-            # Surface (newline[0] is the mass)
-            prevline = newline
-            newline = [float(x) for x in lnlst]
-            if newline[0] > 0.85:
-                break
+            if not plotDecayed:
+                # Surface (newline[0] is the mass)
+                prevline = newline
+                newline = [float(x) for x in lnlst]
+                if newline[0] > 0.85:
+                    break
+            
+            if plotDecayed:
+                dens.append(float(lnlst[1]))
         
         # Close file
         fread.close()
         
         # Calculate values of interest
-        numDens.append([(x + y)*0.5 for (x, y) in
-                        zip(prevline[4:], newline[4:])])
+        if plotDecayed:
+            numDens.append(dens)
+        else:
+            numDens.append([(x + y)*0.5 for (x, y) in
+                            zip(prevline[4:], newline[4:])])
     
     # Calculate now the agb values and print the surface mass fractions per
     # each isotope
@@ -90,7 +107,7 @@ def main():
         dens = numDens[ii]
         
         # Print the model name
-        print "# {}".format(sys.argv[ii + 2])
+        print "# {}".format(sys.argv[ii + 1])
      
         # Add the values for each element
         for jj in range(len(atomicNum)):
@@ -137,8 +154,8 @@ def main():
     
     # Print final values
     print "# [X/Fe] values"
-    for ii in range(len(sys.argv[2:])):
-        print "# {}".format(sys.argv[ii + 2])
+    for ii in range(len(sys.argv[1:])):
+        print "# {}".format(sys.argv[ii + 1])
         print ""
         
         for jj in range(len(xx)):
@@ -168,13 +185,12 @@ def main():
     
     # Begin plot
     figure = plt.figure()
-    plt.title(title, size = 14)
     plt.xlabel("Atomic number Z", size = 14)
     plt.ylabel("[X/Fe]", size = 14)
     
     # Plot values
     if labs is None:
-        labs = sys.argv[3:]
+        labs = sys.argv[1:]
     
     ii = 0
     for dens in finalValues:
@@ -221,6 +237,7 @@ def main():
             plt.plot(namAtm[name], yVal, "ko")
     
     plt.legend(loc=0, ncol = 2)
+    plt.text(30, 1.1, "3M$_\odot$", fontsize = 16)
     plt.show()
 
 if __name__ == "__main__":
