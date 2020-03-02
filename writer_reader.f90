@@ -313,7 +313,7 @@ FUNCTION readPhysMod(model, mass, age, modelNum, isPulse, inModNum, siz)
     ! Local
     TYPE (SHELL), POINTER::tempModel(:)
     DOUBLE PRECISION::rmass, rtemp, rrho, rradiat, rradius, rhp, rpres, rvel
-    DOUBLE PRECISION::prevMass, repsNuc, r3AepsNuc, integNuc, integ3A
+    DOUBLE PRECISION::prevMass, prevTemp, repsNuc, r3AepsNuc, integNuc, integ3A
     INTEGER, ALLOCATABLE::addedIndices(:)
     INTEGER::ii, nShells, error, realNShells, iindx
     
@@ -336,7 +336,7 @@ FUNCTION readPhysMod(model, mass, age, modelNum, isPulse, inModNum, siz)
         IF (inModNum.EQ.0) ALLOCATE(tempModel(nShells), addedIndices(nShells))
         
         ! Initialize
-        prevMass = -1.D2
+        prevMass = 0.D0; prevTemp = 0.D0
         realNShells = 0
         
         ! Fill the array
@@ -351,7 +351,10 @@ FUNCTION readPhysMod(model, mass, age, modelNum, isPulse, inModNum, siz)
             END IF
             
             ! Check if this is really a different shell
-            IF (ABS(rmass - prevMass).LT.1.D-50) CYCLE
+            IF ((ii.GT.1).AND.((rmass - prevMass).LT.1.D-50)) CYCLE
+            
+            ! If temperature grow too much, skip this shell
+            IF ((ii.GT.1).AND.(ABS(rtemp - prevTemp).GT.2)) CYCLE
             
             ! Advance counters
             realNShells = realNShells + 1
@@ -377,6 +380,7 @@ FUNCTION readPhysMod(model, mass, age, modelNum, isPulse, inModNum, siz)
             END IF
             
             prevMass = rmass
+            prevTemp = rtemp
         END DO
         
         IF (inModNum.EQ.0) THEN

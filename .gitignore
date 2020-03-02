@@ -31,5 +31,8 @@ tags
 *.png
 *.tar.gz
 
+# Unignore partition.dat
+!data/partition.dat
+
 # Ignore callgrind output
 callgrind*

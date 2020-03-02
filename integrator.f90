@@ -190,7 +190,7 @@ SUBROUTINE noMixIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
     ! Local
     DOUBLE PRECISION::dens(siz, totShell - 1), initialMass(totShell - 1), Htot
     DOUBLE PRECISION::tt(siz, nSubsteps, nSubsteps), htm, err, epsFactor = 0.95
-    DOUBLE PRECISION::error(nSubsteps - 1), ym(siz), hhcoef, delt(siz)
+    DOUBLE PRECISION::error(nSubsteps - 1), ym(siz), hhcoef
     DOUBLE PRECISION::newHH, difference, minHH, HH, work(nSubsteps - 1), minWork
     INTEGER::ii, mm, kk, lastm, mink, calcProc
     LOGICAL::skipStep, converged, firstTry
@@ -247,7 +247,7 @@ SUBROUTINE noMixIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
                 htm = HH/substeps(mm)
                 
                 ! Calculate the deltas and "final" densities for this step.
-                ym = intShell(ii)%dens; delt = 0.D0
+                ym = intShell(ii)%dens
                 DO kk = 1, substeps(mm)
                     CALL solveExplicit(htm, ym, crosLst(ii), siz, eIndices, &
                                        skipStep)
@@ -340,7 +340,7 @@ SUBROUTINE noMixIntegration(dt, intShell, totShell, crosLst, ntwkMass, &
             ! New HH:
             ! First the root error and work.
             DO kk = 1, lastm - 1
-                error(kk) = (error(kk)/(epsFactor*eps))**(1.D0/(kk + 2))
+                error(kk) = (error(kk)/(epsFactor*eps))**(1.D0/(kk + 1))
                 work(kk) = error(kk)*aj(kk + 1)
             END DO
             

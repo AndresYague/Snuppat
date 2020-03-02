@@ -329,7 +329,7 @@ SUBROUTINE addExtraShells(intShell, exShls, c13indx, p1indx, n14indx, &
     ! Define c13Mass and n14Mass
     c13Mass = 13; n14Mass = 14
     
-    ! Carbon limit
+    ! Carbon limit in mass fraction
     c13Lim = 1.D-3
     
     ! Envelope factor (multiply evenlope hydrogen abundance by this
