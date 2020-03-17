@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 def main():
     # Check that there's at least one argument
     if len(sys.argv) < 2:
-        print("Usage python {} <file1> [<file2> ...]".format(sys.argv[0]))
+        print("Usage python {}".format(sys.argv[0]), end = " ")
+        print("<file1> [<file2> ...]")
         return 1
     
     # Automatically detect if decayed
@@ -23,7 +24,8 @@ def main():
             for line in fread:
                 labs.append(line.strip())
     
-    lowZ = 27 # Lowest z value to represent
+    lowZ = 34 # Lowest z value to represent
+    highZ = 56 # Highest z value to represent
     
     # Read "species.dat" and store all the values in lists
     species = "../../data/species.dat"
@@ -135,21 +137,28 @@ def main():
     
     # Now create the final values
     finalValues = []
-    zList = [x for x in solarValues.keys()]
-    zList.sort()
-    for dens in agbValues:
+    zList = solarValues.keys()
+    zList.sort(); hFe = []
+    for ii in range(len(agbValues)):
+        dens = agbValues[ii]
         thisDens = []
         for key in zList:
-            if key < lowZ:
+            if key == 1:
+                hFe.append(math.log10(dens[key]/solarValues[key]))
+            
+            if key < lowZ or key > highZ:
                 continue
             
             val = math.log10(dens[key]/solarValues[key])
+            
+            # Modify values for [X/H]
+            val -= hFe[ii]
             thisDens.append(val)
         
         finalValues.append(thisDens)
     
     # Create xaxis:
-    xx = [x for x in zList if x >= lowZ]
+    xx = [x for x in zList if x >= lowZ and x <= highZ]
     
     # Print final values
     print("# [X/Fe] values")
@@ -185,7 +194,7 @@ def main():
     # Begin plot
     figure = plt.figure()
     plt.xlabel("Atomic number Z", size = 14)
-    plt.ylabel("[X/Fe]", size = 14)
+    plt.ylabel("[X/H]", size = 14)
     
     # Plot values
     if labs is None:
@@ -213,16 +222,19 @@ def main():
         ii += 1
     
     # Set floating text
-    namAtm = {"Co":27, "Ge":32, "Se":34, "Kr":36, "Sr":38, "Zr":40,
+    namAtm = {"Se":34, "Kr":36, "Sr":38, "Zr":40,
             "Mo":42, "Pd":46, "Cd":48, "Sn":50, "Te":52, "Ba":56,
-            "Ce":58, "Nd":60, "Sm":62, "Gd":64, "Dy":66, "Er":68,
-            "Yb":70, "Hf":72, "W":74, "Os":76, "Hg":80, "Pb":82,
-            "Rb":37, "Cs":55}
+            "Ce":58, "Nd":60, "Sm":62, "Dy":66, "Er":68,
+            "Yb":70, "Hf":72, "Os":76, "Hg":80, "Pb":82,
+            "Rb":37, "Cs":55, "Xe":54, "Br": 35}
     
-    rNamAtm = ["Rb", "Cs"]
+    rNamAtm = []
     
     for name in namAtm:
         yVal = 0
+        if namAtm[name] < lowZ or namAtm[name] > highZ:
+            continue
+        
         for ii in range(len(xx)):
             if xx[ii] == namAtm[name]:
                 yVal = finalValues[-1][ii]
@@ -235,8 +247,41 @@ def main():
         else:
             plt.plot(namAtm[name], yVal, "ko")
     
-    plt.legend(loc=0, ncol = 2)
-    plt.text(30, 1.1, "3M$_\odot$", fontsize = 16)
+    # Observations values
+    # (NGC3918, NGC7027)
+    # Elements: Se, Kr, Rb, Xe
+    xxObs = [34, 35, 36, 37, 52, 54]
+    yyErrs = [
+             [0.10, "-", 0.11, 0.13, "-", 0.11]
+            ,[0.17, 0.08, 0.09, 0.13, 0.12, 0.13]
+             ]
+    PNe = [
+          [0.14, "-", 0.65, 0.25, "-", 0.38]
+         ,[0.26, 0.13, 0.84, 0.70, 0.56, 0.66]
+          ]
+    
+    gray = (0.75, 0.75, 0.75)
+    mrk = ["^", "s"]
+    for star_ii in range(len(PNe)):
+        xxHere = []; yyHere = []; errHere = []
+        for ii in range(len(xxObs)):
+            if PNe[star_ii][ii] == "-":
+                continue
+            else:
+                # Fill a region for each error barr
+                plt.fill_between([xxObs[ii] - 0.5, xxObs[ii] + 0.5],
+                        y1 = PNe[star_ii][ii] - yyErrs[star_ii][ii],
+                        y2 = PNe[star_ii][ii] + yyErrs[star_ii][ii],
+                        facecolor = gray, edgecolor = "k")
+                
+                # Now append things for the actual plot
+                xxHere.append(xxObs[ii])
+                yyHere.append(PNe[star_ii][ii])
+                errHere.append(yyErrs[star_ii][ii])
+        
+        plt.plot(xxHere, yyHere, "k" + mrk[star_ii], lw = 2, ms = 8)
+    
+    plt.legend(loc=0, ncol = 2, prop = {'size': 12})
     plt.show()
 
 if __name__ == "__main__":

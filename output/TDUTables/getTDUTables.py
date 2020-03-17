@@ -293,7 +293,7 @@ def main():
     '''Main program'''
     
     if len(sys.argv) < 2:
-        print "Usage: python {} <SnuppatOutputBIN>".format(sys.argv[0])
+        print("Usage: python {} <SnuppatOutputBIN>".format(sys.argv[0]))
         return 1
     
     # Get mass threshold
@@ -316,10 +316,10 @@ def main():
     
     prevMinCore = None
     # Look for max and min core mass
-    print "Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass,",
-    print "Envelope mass, Dredged Mass, C12, O16 ;",
-    print "Mass Threshold (Msun) = {:.2E}".format(massTh),
-    print " Age Threshold (years) = {:.2E}".format(ageThreshold)
+    print("Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass,", end = " ")
+    print("Envelope mass, Dredged Mass, C12, O16 ;", end = " ")
+    print("Mass Threshold (Msun) = {:.2E}".format(massTh), end = " ")
+    print(" Age Threshold (years) = {:.2E}".format(ageThreshold))
     while True:
         val = getTDUMass(binObj, speciesDict, massTh, ageThreshold)
         maxCoreM, minCoreM, totMass, temp, tempBCE, tempHyd, c12, o16 = val
@@ -335,8 +335,8 @@ def main():
         lambd = dredg/coreGrowth
         
         prevMinCore = minCoreM
-        print lambd, temp, tempBCE, tempHyd, minCoreM,
-        print totMass - minCoreM, dredg, c12, o16
+        print(lambd, temp, tempBCE, tempHyd, minCoreM, end = " ")
+        print(totMass - minCoreM, dredg, c12, o16)
 
 if __name__ == "__main__":
     main()

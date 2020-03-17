@@ -67,18 +67,16 @@ class readBinaryModels(object):
         return True
 
 def main():
-    '''Get evolution of one element in epsilon or [X/Fe]'''
+    '''Get evolution of hs/ls vs s in [X/Fe]'''
     
     # Check arguments
-    if len(sys.argv) < 4:
-        print("Usage python {} <(eps|xfe|massf)> <model>".format(sys.argv[0]), end = " ")
-        print("<elem1> [elem2, elem3, ...]")
+    if len(sys.argv) < 2:
+        print("Usage python {} <model>".format(sys.argv[0]))
         return 1
     
     data = "../../data/species.dat"
-    mode = sys.argv[1]
-    archivo = sys.argv[2]
-    elms = sys.argv[3:]
+    archivo = sys.argv[1]
+    hsLsElems = ["sr", "y", "zr", "ba", "la", "ce"]
     
     # Read "species.dat" and store all the values in lists
     species = "../../data/species.dat"
@@ -115,7 +113,7 @@ def main():
     
     # Each line has mass, temperature, rho, radiat
     # and elements in number fraction
-    ages = []; evolEps = []; evolXFe = []; evolMassF = []
+    evolXFe = []; jj = -1
     while True:
         isNewModel = modelObj.nextModel()
         if not isNewModel:
@@ -124,15 +122,8 @@ def main():
         header = modelObj.head
         model = modelObj.model
         
-        # Get the age
-        age = 10**(header[2] - 3)
-        if len(ages) == 0:
-            ages.append(age)
-        else:
-            ages.append(age - ages[0])
-        
         # Report some progress
-        print(len(ages))
+        print(jj)
         
         # Find the surface for this model
         for ii in range(1, len(model)):
@@ -147,30 +138,17 @@ def main():
                 # Take all abundances
                 dens = [(x + y)*0.5 for (x, y) in zip(prevLine[4:], newLine[4:])]
                 
-                epsVals = {}; xFeVals = {}; mFVals = {}
+                xFeVals = {}
                 # Add the values for each element
                 for ii in range(len(atomicNum)):
                     key = atomicNum[ii]
-                    epsVals[key] = epsVals.get(key, 0) + dens[ii]
-                    mFVals[key] = mFVals.get(key, 0) + dens[ii]*atomicMass[ii]
-                    xFeVals[key] = mFVals[key]
+                    xFeVals[key] = xFeVals.get(key, 0) + dens[ii]*atomicMass[ii]
                 
                 # Now calculate values of interest
-                hydroVal = epsVals[namesZ["h"]]
+                selectedFe = []
                 feVal = xFeVals[namesZ["fe"]]
                 sunFeVal = solarValues[namesZ["fe"]]
-                selectedEps = []; selectedFe = []; selectedMassF = []
-                for elem in elms:
-                    try:
-                        val = epsVals[namesZ[elem]]/hydroVal + 1e-100
-                    except KeyError:
-                        print("{} is not on the list".format(elem))
-                    except:
-                        raise
-                    
-                    val = math.log10(val) + 12
-                    selectedEps.append(val)
-                    
+                for elem in hsLsElems:
                     try:
                         val = xFeVals[namesZ[elem]]/feVal + 1e-100
                     except KeyError:
@@ -180,59 +158,31 @@ def main():
                     sunVal = solarValues.get(namesZ[elem], 1e-100)/sunFeVal
                     val = math.log10(val) - math.log10(sunVal)
                     selectedFe.append(val)
-                    
-                    try:
-                        val = mFVals[namesZ[elem]] + 1e-100
-                    except KeyError:
-                        print("{} is not on the list".format(elem))
-                    except:
-                        raise
-                    selectedMassF.append(val)
                 
                 break
         
-        evolEps.append(selectedEps)
         evolXFe.append(selectedFe)
-        evolMassF.append(selectedMassF)
     
-    # Transform age and evol values to something plottable
-    ages[0] = 0
-    evolEps = numpy.transpose(numpy.array(evolEps))
-    evolXFe = numpy.transpose(numpy.array(evolXFe))
-    evolMassF = numpy.transpose(numpy.array(evolMassF))
+    # Calculate hs/Fe, ls/Fe and s/Fe
+    sFe = []; hsLs = []
+    for arr in evolXFe:
+        lsFe = sum(arr[0:3])/3.
+        hsFe = sum(arr[3:])/3.
+        
+        sFe.append(sum(arr)/6.)
+        hsLs.append(hsFe - lsFe)
     
     # Now plot values
-    if mode == "eps":
-        for ii in range(len(elms)):
-            evEps = evolEps[ii]
-            minLen = min(len(ages), len(evEps))
-            plt.plot(ages[0:minLen], evEps[0:minLen], label = elms[ii], lw = 2)
-        
-        plt.xlabel("TP-AGB time in ky")
-        plt.ylabel("Log epsilon")
-        plt.ylim([-2, 5])
-        
-    elif mode == "xfe":
-        for ii in range(len(elms)):
-            evXFe = evolXFe[ii]
-            minLen = min(len(ages), len(evXFe))
-            plt.plot(ages[0:minLen], evXFe[0:minLen], label = elms[ii], lw = 2)
-        
-        plt.xlabel("TP-AGB time in ky")
-        plt.ylabel("[X/Fe]")
-        plt.ylim([-0.2, 2])
-        
-    elif mode == "massf":
-        for ii in range(len(elms)):
-            evMassF = evolMassF[ii]
-            minLen = min(len(ages), len(evMassF))
-            plt.plot(ages[0:minLen], evMassF[0:minLen], label = elms[ii], lw = 2)
-        
-        plt.xlabel("TP-AGB time in ky")
-        plt.ylabel("Mass fraction")
-        plt.yscale("log")
+    plt.plot(sFe, hsLs, lw = 2)
     
-    plt.legend(loc = 0)
+    plt.xlabel("[s/Fe]")
+    plt.ylabel("[hs/ls]")
+    
+    print("# file: {}".format(archivo))
+    print("# sFe hsLs")
+    for ii in range(len(sFe)):
+        print("{} {}".format(sFe[ii], hsLs[ii]))
+    
     plt.show()
     
     return 0

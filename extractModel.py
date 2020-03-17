@@ -72,8 +72,8 @@ def main():
     Then write them.'''
     
     if len(sys.argv) < 5:
-        print "use: python {} <phys> <chem> model".format(sys.argv[0]),
-        print "<number of models>".format(sys.argv[0])
+        print("use: python {} <phys> <chem> model".format(sys.argv[0]), end = " ")
+        print("<number of models>".format(sys.argv[0]))
         return 0
     
     phys = open(sys.argv[1], "r")
@@ -84,7 +84,7 @@ def main():
     # Search for chemical model and exit if not found
     modMass, modLen, modChem = searchModelChem(chem, modNum)
     if modChem is None:
-        print "Model unavailable"
+        print("Model unavailable")
         return 0
     
     # Open and write in contChem
@@ -107,7 +107,7 @@ def main():
         # Search for next model
         modPhys, leftOver = searchModelPhys(phys, modNum + i, leftOver)
         if modPhys is None:
-            print "Model {} not found".format(modNum + i)
+            print("Model {} not found".format(modNum + i))
             break
         
         # Write it

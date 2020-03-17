@@ -67,9 +67,9 @@ class readBinaryModels(object):
 
 def main():
     if len(sys.argv) < 3:
-        print "Usage {} <input> <output> [time in ky]".format(sys.argv[0])
-        print "If time is 0, it will fetch the first model."
-        print "If no time is given it will get the last model."
+        print("Usage {} <input> <output> [time in ky]".format(sys.argv[0]))
+        print("If time is 0, it will fetch the first model.")
+        print("If no time is given it will get the last model.")
         return 1
     
     if len(sys.argv) == 4:

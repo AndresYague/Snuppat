@@ -36,7 +36,7 @@ def main():
             ini_model = int(sys.argv[-1])
             
         except ValueError:
-            print "Usage: python {} [model_number]".format(sys.argv[0])
+            print("Usage: python {} [model_number]".format(sys.argv[0]))
             return 2
             
         except:
@@ -46,19 +46,19 @@ def main():
         ini_model = None
     
     # First step: Extract chemistry from chosen model
-    print "Extracting chemistry, step {} of {}".format(current, nsteps)
+    print("Extracting chemistry, step {} of {}".format(current, nsteps))
     current += 1
     
     chemst = os.path.join("input", "chemistry.dat")
     extracted = extract_chemistry(infilepath, chemst, ini_model)
     
     if not extracted:
-        print "Model {} doesn't exist".format(ini_model)
+        print("Model {} doesn't exist".format(ini_model))
         return 3
     
     # Second step: Extract physics from chosen model
-    print "Extracting physics, step {} of {}".format(current, nsteps)
-    print "---"
+    print("Extracting physics, step {} of {}".format(current, nsteps))
+    print("---")
     current += 1
     
     phys = os.path.join("input", "physics.dat")
@@ -66,7 +66,7 @@ def main():
     extracted = extract_physics(infilepath, phys, minMaxDt, ini_model)
     
     if not extracted:
-        print "Unable to extract physics models"
+        print("Unable to extract physics models")
         return 4
 
 def average(lst):
@@ -236,10 +236,12 @@ def extract_physics(infilepath, phys, minMaxDt, ini_model):
                         if in_unix and ((prctg - old_prctg) > 1):
                             # Move in shell: up one line, back three columns
                             # and erase line
-                            print "[1A",; print "[30D",; print "[K",
+                            print("[1A", end = " ")
+                            print("[30D", end = " ")
+                            print("[K", end = " ")
                             
                             # Write precentage.
-                            print "Done {}%".format(int(prctg))
+                            print("Done {}%".format(int(prctg)))
                             old_prctg = prctg
                     
                 elif "CHIMICA" in line:

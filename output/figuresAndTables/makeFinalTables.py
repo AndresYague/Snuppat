@@ -32,13 +32,13 @@ def printTable(storeNamVal):
         elif zz1 == firstOfSecond:
             break
         
-        print "{} & {} & {:5.2f} & ".format(nam1, zz1, float(val1)),
-        print "{} & {} & {:5.2f} & ".format(nam2, zz2, float(val2)),
+        print("{} & {} & {:5.2f} & ".format(nam1, zz1, float(val1)), end = " ")
+        print("{} & {} & {:5.2f} & ".format(nam2, zz2, float(val2)), end = " ")
         
         if val3 != "--":
-            print "{} & {} & {:5.2f}\\\\".format(nam3, zz3, float(val3))
+            print("{} & {} & {:5.2f}\\\\".format(nam3, zz3, float(val3)))
         else:
-            print "{} & {} & {}\\\\".format(nam3, zz3, val3)
+            print("{} & {} & {}\\\\".format(nam3, zz3, val3))
 
 def main():
     '''Transform plottedValues.dat into .tex tables'''
@@ -64,10 +64,10 @@ def main():
             if "#" in line:
                 if len(storeNamVal) > 0:
                     printTable(storeNamVal)
-                    print
+                    print()
                     storeNamVal = {}
                 
-                print line
+                print(line)
                 continue
             
             lnlst = line.split()

@@ -15,8 +15,8 @@ def main():
     
     # Check input
     if len(sys.argv) < 2:
-        print "Usage: python {}".format(sys.argv[0]),
-        print "<input file> [mode = isotopes]"
+        print("Usage: python {}".format(sys.argv[0]),)
+        print("<input file> [mode = isotopes]")
         return 1
         
     else:
@@ -26,7 +26,7 @@ def main():
     if len(sys.argv) >= 3:
         mode = sys.argv[2]
         if mode != "isotopes" and mode != "elements":
-            print 'The mode must be either "isotopes" or "elements"'
+            print('The mode must be either "isotopes" or "elements"')
             return 1
     
     # Species dictionary
@@ -125,16 +125,16 @@ def main():
             if foundLine:
                 dt = age - firstAge
                 if dt > 0:
-                    print "# Mass: {} MSun. Time: {} ky".format(totMass, dt)
+                    print("# Mass: {} MSun. Time: {} ky".format(totMass, dt))
                     for ii in range(len(idNam)):
                         if mode == "elements":
                             formStr = "{:2} {:2} {:11.4E}"
                         elif mode == "isotopes":
                             formStr = "{:5} {:2} {:11.4E}"
                         
-                        print formStr.format(idNam[ii], idZZ[ii], yields[ii])
+                        print(formStr.format(idNam[ii], idZZ[ii], yields[ii]))
                     
-                    print
+                    print()
             
             prevLine = lnlst
 

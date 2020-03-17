@@ -27,8 +27,8 @@ def main():
     '''Reduce the number of models in an output'''
     
     if len(sys.argv) < 3:
-        print "Use: python {} <input>".format(sys.argv[0]),
-        print "<model writting frequency>"
+        print("Use: python {} <input>".format(sys.argv[0]), end = " ")
+        print("<model writting frequency>")
         return 1
     
     arch = sys.argv[1]

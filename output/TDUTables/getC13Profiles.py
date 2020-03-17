@@ -345,8 +345,8 @@ def main():
     '''Main program'''
     
     if len(sys.argv) < 2:
-        print "Usage: python {} ".format(sys.argv[0]),
-        print "<SnuppatOutputBIN> [convVel file]"
+        print("Usage: python {} ".format(sys.argv[0]), end = " ")
+        print("<SnuppatOutputBIN> [convVel file]")
         return 1
     
     # Get mass threshold
@@ -365,7 +365,7 @@ def main():
     
     prevMinCore = None
     # Look for max and min core mass
-    print "# Mass Threshold = {}".format(massTh)
+    print("# Mass Threshold = {}".format(massTh))
     while True:
         val = getTDUMass(binObj, convVelReader, speciesDict, massTh)
         maxCoreMass, minCoreMass, intMass, maxPocket, maxTPTemp, convVel, totMass = val
@@ -386,19 +386,19 @@ def main():
             pockMass = (maxPocket[-1][0] - maxPocket[0][0])*totMass
         
         prevMinCore = minCoreMass
-        print "# Lambda = {}; Pocket Size = {}; ".format(lambd, pockMass),
-        print "Core mass = {}; Intershell mass = {};".format(maxCoreMass, intMass),
+        print("# Lambda = {}; Pocket Size = {}; ".format(lambd, pockMass), end = " ")
+        print("Core mass = {}; Intershell mass = {};".format(maxCoreMass, intMass), end = " ")
         if convVel is not None:
-            print "Convective velocity = {}".format(convVel),
+            print("Convective velocity = {}".format(convVel), end = " ")
         
-        print ""
+        print("")
         if maxPocket is None:
-            print "# --"
+            print("# --")
         else:
             for elem in maxPocket:
-                print elem[0]*totMass, elem[1]
+                print(elem[0]*totMass, elem[1])
         
-        print
+        print()
 
 if __name__ == "__main__":
     main()

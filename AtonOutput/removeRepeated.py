@@ -38,8 +38,8 @@ class ReadWriteObject(object):
         # Create a dictionary where the keys are all the models found and the
         # value is the number of repetitions of said model.
         oldPrctg = 0
-        print "Searching for repeated models"
-        print
+        print("Searching for repeated models")
+        print()
         for line in self.fread:
             if pattMod in line:
                 modNum = int(line.split()[1])
@@ -68,17 +68,19 @@ class ReadWriteObject(object):
                 if inUnix and ((prctg - oldPrctg) > 1):
                     # Move in shell: up one line, back three columns
                     # and erase line
-                    print "[1A",; print "[30D",; print "[K",
+                    print("[1A", end = " ")
+                    print("[30D", end = " ")
+                    print("[K", end = " ")
                     
                     # Write precentage.
-                    print "Done {}%".format(int(prctg))
+                    print("Done {}%".format(int(prctg)))
                     oldPrctg = prctg
         
         # Rewind fread and write models to fwrite if not repeated
         self.fread.seek(0)
         
-        print "Copying models"
-        print
+        print("Copying models")
+        print()
         oldPrctg = 0; lines = ""
         for line in self.fread:
             lines += line
@@ -115,10 +117,12 @@ class ReadWriteObject(object):
                 if inUnix and ((prctg - oldPrctg) > 1):
                     # Move in shell: up one line, back three columns
                     # and erase line
-                    print "[1A",; print "[30D",; print "[K",
+                    print("[1A", end = " ")
+                    print("[30D", end = " ")
+                    print("[K", end = " ")
                     
                     # Write precentage.
-                    print "Done {}%".format(int(prctg))
+                    print("Done {}%".format(int(prctg)))
                     oldPrctg = prctg
     
     def renameAndClose(self):

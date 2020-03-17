@@ -4,7 +4,7 @@ import matplotlib.ticker as ticker
 
 def main():
     if len(sys.argv) < 2:
-        print "Usage: python {} profile1 <profile2 ...>".format(sys.argv[0])
+        print("Usage: python {} profile1 <profile2 ...>".format(sys.argv[0]))
         return 1
     
     subplotNum = len(sys.argv[1:])
@@ -97,8 +97,8 @@ def main():
         # Print the average size
         if c13Count > 0:
             avgMass = c13TotMass/c13Count
-            print "# Average pocket mass in {} = {}".format(arch, avgMass)
-            print ""
+            print("# Average pocket mass in {} = {}".format(arch, avgMass))
+            print("")
     
     # Fix axes
     ii = 0

@@ -145,9 +145,9 @@ def highTemp():
             netwrk.append(Element(parts[1], parts[0], count = "yes"))
     
     # Create partition.lst
-    print "Creating partition.lst..."
+    print("Creating partition.lst...")
     writePartition(refpartition, partition, netwrk)
-    print "Finished partition functions"
+    print("Finished partition functions")
     
     # List of elements that should be written at the beginning of the
     # first file with their index
@@ -191,7 +191,12 @@ def highTemp():
                     # Check that all reactions are
                     nuclList = list()
                     allin = [isInList(x, netwrk, nuclList) for x in nucleons]
-                    allin = reduce(lambda x, y: x and y, allin)
+                    reduced = True
+                    for elem in allin:
+                        if not elem:
+                            reduced = False
+                            break
+                    allin = reduced
                     
                     if allin:
                         reactions += 1
@@ -221,12 +226,14 @@ def highTemp():
         if completed > 1:
             # Move in shell: up one line, back three columns
             # and erase line
-            print "[1A",; print "[30D",; print "[K",
+            print("[1A", end = " ")
+            print("[30D", end = " ")
+            print("[K", end = " ")
         
         # Write progress
-        print "Done {}/{}".format(completed, len(lists))
+        print("Done {}/{}".format(completed, len(lists)))
     
-    print "{} elements in {} reactions".format(Element.count, reactions)
+    print("{} elements in {} reactions".format(Element.count, reactions))
     
     # Restart count
     Element.count = 0
@@ -278,7 +285,7 @@ def lowTemp():
         fwrite.close()
     
     # Print initial non-progress
-    print "Done {}%".format(0)
+    print("Done {}%".format(0))
     
     # Search and store
     reactions = 0; currLine = 0; oldPrctg = 0
@@ -320,7 +327,12 @@ def lowTemp():
                     # Check that all reactions are
                     nuclList = list()
                     allin = [isInList(x, netwrk, nuclList) for x in nucleons]
-                    allin = reduce(lambda x, y: x and y, allin)
+                    reduced = True
+                    for elem in allin:
+                        if not elem:
+                            reduced = False
+                            break
+                    allin = reduced
                     
                     # Add to stri1 the isotope indices and the source
                     if allin:
@@ -346,10 +358,12 @@ def lowTemp():
                 if prctg > oldPrctg:
                     # Move in shell: up one line, back three columns
                     # and erase line
-                    print "[1A",; print "[30D",; print "[K",
+                    print("[1A", end = " ")
+                    print("[30D", end = " ")
+                    print("[K", end = " ")
                     
                     # Write precentage.
-                    print "Done {}%".format(prctg)
+                    print("Done {}%".format(prctg))
                     oldPrctg = prctg
         
         # Check if write last reaction
@@ -370,14 +384,14 @@ def lowTemp():
             # Close
             fapnd.close()
     
-    print "{} elements in {} reactions".format(Element.count, reactions)
+    print("{} elements in {} reactions".format(Element.count, reactions))
     
     # Restart count
     Element.count = 0
 
 if __name__ == "__main__":
-    print "----> High temperature reactions"
+    print("----> High temperature reactions")
     highTemp()
-    print "--------------------------"
-    print "----> Low temperature reactions"
+    print("--------------------------")
+    print("----> Low temperature reactions")
     lowTemp()

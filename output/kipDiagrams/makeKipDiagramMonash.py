@@ -1,70 +1,58 @@
 import struct, sys
 import matplotlib.pyplot as plt
 
-class readBinaryModels(object):
-    '''Class for reading binary models'''
+class readModelsMonash(object):
+    '''Class for reading Monash models'''
     
     def __init__(self, fil):
         '''Initialize'''
         
-        super(readBinaryModels, self).__init__()
-        self.fread = open(fil, "rb")
-        self.head = None
-        self.model = None
+        super(readModelsMonash, self).__init__()
+        self.fread = open(fil, "r")
     
     def close(self):
         '''Close file'''
         
         self.fread.close()
     
-    def __readHeader(self):
-        '''Return header'''
+    def nextModel(self, currPos = None, onlyHead = False):
+        '''Return next model'''
         
-        head = []
-        byte = self.fread.read(4)
-        if len(byte) == 0:
-            return None
+        if currPos is not None:
+            self.fread.seek(currPos)
         
-        head.append(*struct.unpack('i', byte))
-        head.append(*struct.unpack('d', self.fread.read(8)))
-        head.append(*struct.unpack('d', self.fread.read(8)))
-        head.append(*struct.unpack('i', self.fread.read(4)))
-        head.append(*struct.unpack('i', self.fread.read(4)))
-        
-        return head
-    
-    def nextModel(self):
-        '''Calculate next model, unpacked'''
-        
-        # Read header
-        self.head = self.__readHeader()
-        if self.head is None:
-            return False
-        
-        self.model = [self.head]
-        for ii in range(self.head[3]):
-            s = []
-            for jj in range(self.head[4]):
-                s.append(*struct.unpack('d', self.fread.read(8)))
+        # Look for the next model
+        head = None; model = []; nMod = None
+        while True:
+            currPos = self.fread.tell()
+            line = self.fread.readline()
+            lnlst = line.split()
             
-            self.model.append(s)
+            # Exit if end of the file
+            if len(line) == 0:
+                break
+            
+            # Add new line to the model or exit if new model
+            if nMod is not None:
+                if len(lnlst) > 1:
+                    model.append(map(float, line.split()))
+                else:
+                    break
+                
+            elif len(lnlst) == 1:
+                nMod = int(lnlst[0])
+                age = float(nMod) # TODO for now I don't have info on this
+                head = [nMod, age]
+                
+                # Return now if only looking for head
+                if onlyHead:
+                    return head, currPos
         
-        return True
-    
-    def readOnlyHeader(self):
-        '''Look only for the header and skip the rest'''
-        
-        # Read header
-        self.head = self.__readHeader()
-        if head is None:
+        if nMod is None:
             return False
-        
-        # Skip file
-        for ii in range(head[3]):
-            for jj in range(head[4]):
-                self.fread.read(8)
-        
-        return True
+        else:
+            self.model = [head + [len(model)], model]
+            return True
 
 def getDist(kk, storeCurr, storePrev):
     dist = 0; lenStore = len(storeCurr)
@@ -106,20 +94,22 @@ def getSpeciesDict(species, corrPos = 0):
 def getCarbonMass(model, speciesDict, cMasses):
     '''Return carbon masses'''
     
+    # Store all carbon masses
     cindex = speciesDict["c12"]
     mass = []; cc = []; temp = []
     c2 = None; m2 = None; t2 = None
-    for ii in range(model[0][3]):
-        c1 = model[ii + 1][cindex]
-        m1 = model[ii + 1][0]
+    for ii in range(model[0][2]):
+        c1 = model[1][ii][cindex]
+        m1 = model[1][ii][0]
         if c2 is None:
             c2 = c1; m2 = m1
             continue
         
-        cc.append((c1 + c2)*0.5*12)
+        cc.append((c1 + c2)*0.5)
         mass.append((m1 + m2)*0.5)
         c2 = c1; m2 = m1
     
+    # Search for every carbon mass in cMasses from the surface to the core
     carbonMasses = None
     for cM in cMasses:
         ii = len(cc) - 1
@@ -128,7 +118,7 @@ def getCarbonMass(model, speciesDict, cMasses):
                 if carbonMasses is None:
                     carbonMasses = []
                 
-                carbonMasses.append(mass[ii]*model[0][1])
+                carbonMasses.append(mass[ii])
                 break
             
             ii -= 1
@@ -143,27 +133,27 @@ def getBCEMass(model, speciesDict):
     as the last convective poin where H ~ maxH'''
     
     hindx = speciesDict["p1"]
-    mass = []; hydro = []; radiat = []
-    h2 = None; m2 = None; rad2 = None
-    for ii in range(model[0][3]):
-        h1 = model[ii + 1][hindx]
-        m1 = model[ii + 1][0]
-        rad1 = model[ii + 1][3]
+    mass = []; hydro = []; convV = []
+    h2 = None; m2 = None; convV2 = None
+    for ii in range(model[0][2]):
+        h1 = model[1][ii][hindx]
+        m1 = model[1][ii][0]
+        convV1 = model[1][ii][3]
         if h2 is None:
-            h2 = h1; m2 = m1; rad2 = rad1
+            h2 = h1; m2 = m1; convV2 = convV1
             continue
         
         hydro.append((h1 + h2)*0.5)
         mass.append((m1 + m2)*0.5)
-        radiat.append((rad1 + rad2)*0.5)
-        h2 = h1; m2 = m1; rad2 = rad1
+        convV.append((convV1 + convV2)*0.5)
+        h2 = h1; m2 = m1; convV2 = convV1
     
     maxHydr = max(hydro)
     ii = len(hydro) - 1
     bceMass = None
     while ii > -1:
-        if hydro[ii] >= (maxHydr*.9) and radiat[ii] > 0:
-            bceMass = mass[ii]*model[0][1]
+        if hydro[ii] >= (maxHydr*.9) and convV[ii] > 0:
+            bceMass = mass[ii]
         
         ii -= 1
     
@@ -172,24 +162,23 @@ def getBCEMass(model, speciesDict):
 def getConvRegions(model):
     '''Return convective regions'''
     
-    mass = []; radiat = []
-    m2 = None; rad2 = None
-    totMass = model[0][1]
-    for ii in range(model[0][3]):
-        m1 = model[ii + 1][0]
-        rad1 = model[ii + 1][3]
+    mass = []; convV = []
+    m2 = None; convV2 = None
+    for ii in range(model[0][2]):
+        m1 = model[1][ii][0]
+        convV1 = model[1][ii][2]
         if m2 is None:
-            m2 = m1; rad2 = rad1
+            m2 = m1; convV2 = convV1
             continue
         
-        mass.append((m1 + m2)*0.5*totMass)
-        radiat.append((rad1 + rad2)*0.5)
-        m2 = m1; rad2 = rad1
+        mass.append((m1 + m2)*0.5)
+        convV.append((convV1 + convV2)*0.5)
+        m2 = m1; convV2 = convV1
     
     conveZones = []
     inConve = False; m0 = None; m1 = None
     for ii in range(len(mass)):
-        if radiat[ii] > 0:
+        if convV[ii] > 0:
             if not inConve:
                 inConve = True
                 m0 = mass[ii]
@@ -207,18 +196,19 @@ def getConvRegions(model):
     
     return conveZones
 
-def getValues(binObj, speciesDict, cMasses):
+def getValues(monashObj, speciesDict, cMasses):
     '''Gets core mass, envelope mass per model'''
     
     # Read model
-    isNewMod = binObj.nextModel()
-    model = binObj.model
+    isNewMod = monashObj.nextModel()
+    model = monashObj.model
     
     # Get core mass, BCE mass and convective regions
     carbonMass = getCarbonMass(model, speciesDict, cMasses)
     BCEMass = getBCEMass(model, speciesDict)
     convReg = getConvRegions(model)
-    age = 10**model[0][2]
+    #age = 10**model[0][1] # TODO fix this at some point
+    age = model[0][1]
     modNum = model[0][0]
     
     if carbonMass is None:
@@ -232,23 +222,23 @@ def main():
     '''Main program'''
     
     if len(sys.argv) < 2:
-        print("Usage: python {} <SnuppatOutputBIN>".format(sys.argv[0]))
+        print("Usage: python {} <MonashOutput>".format(sys.argv[0]))
         return 1
     
-    species = "../../data/species.dat"
-    speciesDict = getSpeciesDict(species, 4)
+    species = "speciesMonash.dat"
+    speciesDict = getSpeciesDict(species, 3)
     
     # Create object
-    binObj = readBinaryModels(sys.argv[1])
+    monashObj = readModelsMonash(sys.argv[1])
     
     # Define carbon masses
-    cMasses = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+    cMasses = (0.3, 0.4, 0.5)
     
     firstAge = None
     ageArr = []; modNumArr = []; convRegArr = []
     carbonMassArr = []; envMassArr = []
     while True:
-        vals = getValues(binObj, speciesDict, cMasses)
+        vals = getValues(monashObj, speciesDict, cMasses)
         age, modNum, convReg, carbonMass, envMass, cont = vals
         if firstAge is None:
             firstAge = age
@@ -268,11 +258,9 @@ def main():
             break
         
         print(len(ageArr))
-        #if modNumArr[-1] > 40000:
-            #break
     
-    #xxArr = modNumArr
-    xxArr = ageArr
+    xxArr = modNumArr
+    #xxArr = ageArr
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -282,8 +270,8 @@ def main():
                 label = "XC12 = {}".format(cMasses[ii]))
     ax.plot(xxArr, envMassArr, lw = 2, label = "H exhausted core")
     
-    #ax.set_xlabel("Model number")
-    ax.set_xlabel("Time in yrs")
+    ax.set_xlabel("Model number")
+    #ax.set_xlabel("Time in yrs")
     ax.set_ylabel("M/M$_\odot$")
     
     plt.legend(loc = 0)

@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 def main():
     # Check that there's at least one argument
     if len(sys.argv) < 2:
-        print "Usage python {}".format(sys.argv[0]),
-        print "<file1> [<file2> ...]"
+        print("Usage python {}".format(sys.argv[0]), end  = " ")
+        print("<file1> [<file2> ...]")
         return 1
     
     files = sys.argv[1:]
@@ -28,7 +28,7 @@ def main():
             atomicMass.append(int(lnlst[0]))
     
     # Go file by file
-    print "Isotopical mass fraction per file"
+    print("Isotopical mass fraction per file")
     for archivo in files:
         
         # Open file for reading
@@ -58,12 +58,12 @@ def main():
         massFrac = [(x + y)*0.5*z for (x, y, z) in
                     zip(prevline[4:], newline[4:], atomicMass)]
         
-        print ""
-        print "# {}".format(archivo)
-        print ""
+        print("")
+        print("# {}".format(archivo))
+        print("")
         
         for ii in range(len(atomicMass)):
-            print isotNames[ii], massFrac[ii]
+            print(isotNames[ii], massFrac[ii])
 
 if __name__ == "__main__":
     main()

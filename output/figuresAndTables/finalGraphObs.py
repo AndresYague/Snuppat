@@ -4,26 +4,21 @@ import matplotlib.pyplot as plt
 def main():
     # Check that there's at least one argument
     if len(sys.argv) < 2:
-        print("Usage python {} <file1> [<file2> ...]".format(sys.argv[0]))
+        print("Usage python {}".format(sys.argv[0]), end = " ")
+        print("<file1> [<file2> ...]")
         return 1
     
-    # Automatically detect if decayed
-    if "decayed" in sys.argv[1]:
-        plotDecayed = True
-    else:
-        plotDecayed = False
-    
     # Read input file
-    fil = "finalGraph.in"
-    if os.path.isfile(fil):
-        with open(fil, "r") as fread:
+    if os.path.isfile("finalGraph.in"):
+        with open("finalGraph.in", "r") as fread:
             lstyles = fread.readline().strip().split()
             
             labs = []
             for line in fread:
                 labs.append(line.strip())
     
-    lowZ = 27 # Lowest z value to represent
+    lowZ = 34 # Lowest z value to represent
+    highZ = 63 # Highest z value to represent
     
     # Read "species.dat" and store all the values in lists
     species = "../../data/species.dat"
@@ -60,7 +55,6 @@ def main():
     for archivo in sys.argv[1:]:
         
         # Open file for reading
-        dens = []
         fread = open(archivo, "r")
         
         # Each line has mass, temperature, rho, radiat
@@ -72,30 +66,20 @@ def main():
             
             lnlst = line.split()
             if len(lnlst) == 0:
-                if plotDecayed:
-                    break
-                else:
-                    continue
+                continue
             
-            if not plotDecayed:
-                # Surface (newline[0] is the mass)
-                prevline = newline
-                newline = [float(x) for x in lnlst]
-                if newline[0] > 0.85:
-                    break
-            
-            if plotDecayed:
-                dens.append(float(lnlst[1]))
+            # Surface (newline[0] is the mass)
+            prevline = newline
+            newline = [float(x) for x in lnlst]
+            if newline[0] > 0.85:
+                break
         
         # Close file
         fread.close()
         
         # Calculate values of interest
-        if plotDecayed:
-            numDens.append(dens)
-        else:
-            numDens.append([(x + y)*0.5 for (x, y) in
-                            zip(prevline[4:], newline[4:])])
+        numDens.append([(x + y)*0.5 for (x, y) in
+                        zip(prevline[4:], newline[4:])])
     
     # Calculate now the agb values and print the surface mass fractions per
     # each isotope
@@ -135,12 +119,12 @@ def main():
     
     # Now create the final values
     finalValues = []
-    zList = [x for x in solarValues.keys()]
+    zList = solarValues.keys()
     zList.sort()
     for dens in agbValues:
         thisDens = []
         for key in zList:
-            if key < lowZ:
+            if key < lowZ or key > highZ:
                 continue
             
             val = math.log10(dens[key]/solarValues[key])
@@ -149,7 +133,7 @@ def main():
         finalValues.append(thisDens)
     
     # Create xaxis:
-    xx = [x for x in zList if x >= lowZ]
+    xx = [x for x in zList if x >= lowZ and x <= highZ]
     
     # Print final values
     print("# [X/Fe] values")
@@ -184,8 +168,8 @@ def main():
     
     # Begin plot
     figure = plt.figure()
-    plt.xlabel("Atomic number Z", size = 14)
-    plt.ylabel("[X/Fe]", size = 14)
+    plt.xlabel("Atomic number Z", size = 12)
+    plt.ylabel("[X/Fe]", size = 12)
     
     # Plot values
     if labs is None:
@@ -213,13 +197,10 @@ def main():
         ii += 1
     
     # Set floating text
-    namAtm = {"Co":27, "Ge":32, "Se":34, "Kr":36, "Sr":38, "Zr":40,
-            "Mo":42, "Pd":46, "Cd":48, "Sn":50, "Te":52, "Ba":56,
-            "Ce":58, "Nd":60, "Sm":62, "Gd":64, "Dy":66, "Er":68,
-            "Yb":70, "Hf":72, "W":74, "Os":76, "Hg":80, "Pb":82,
-            "Rb":37, "Cs":55}
+    namAtm = {"Se":34, "Kr":36, "Sr":38, "Zr":40, "Mo":42, "Pd":46, "Cd":48,
+        "Sn":50, "Te":52, "Ba":56, "Ce":58, "Nd":60, "Sm":62, "Rb":37, "Cs":55}
     
-    rNamAtm = ["Rb", "Cs"]
+    rNamAtm = []
     
     for name in namAtm:
         yVal = 0
@@ -235,8 +216,47 @@ def main():
         else:
             plt.plot(namAtm[name], yVal, "ko")
     
-    plt.legend(loc=0, ncol = 2)
-    plt.text(30, 1.1, "3M$_\odot$", fontsize = 16)
+    # Observations values
+    # (AW Cyg, S Sct, SS Vir, SZ Sgr, U Hya, V460 Cyg, Z Psc)
+    xxObs = [37, 38, 39, 40, 56, 57, 58, 60, 62]
+    yyErrs = [0.25, 0.20, 0.20, 0.20, 0.3, 0.40, 0.45, 0.40, 0.40]
+    abiStars = [
+               [0.2, 0.4, 0.3, 0.5, 0, 0.3, "-", 0.5, "-"],
+               [0.5, 0.8, 0.7, 0.5, 0.2, 0.1, "-", 0.2, "-"],
+               ["-", 0.0, 0.5, 0.4, 0.3, 0.4, "-", 0.3, "-"],
+               [0.1, 0.4, 0.9, 0.8, 0.8, 0.9, "-", 0.9, 0.6],
+               [0.5, 0.8, 1.3, 1.1, 1.1, 0.9, 0.6, 1.0, 0.7],
+               [0.4, 0.5, 0.7, 0.8, 0.8, 0.7, "-", 0.8, 0.4],
+               [0.6, 0.9, 1.0, 1.0, 1.0, 1.1, 0.6, 0.9, 0.8]
+              ]
+    
+    gray = (0.75, 0.75, 0.75)
+    for star_ii in range(len(abiStars)):
+        xxHere = []; yyHere = []; errHere = []
+        for ii in range(len(xxObs)):
+            if abiStars[star_ii][ii] == "-":
+                continue
+            else:
+                # Fill a region for each error barr
+                plt.fill_between([xxObs[ii] - 0.5, xxObs[ii] + 0.5],
+                        y1 = abiStars[star_ii][ii] - yyErrs[ii],
+                        y2 = abiStars[star_ii][ii] + yyErrs[ii],
+                        color = gray)
+                
+                # Now append things for the actual plot
+                xxHere.append(xxObs[ii])
+                yyHere.append(abiStars[star_ii][ii])
+        
+        if star_ii == 2 or star_ii == 3:
+            col = "sr"
+        elif star_ii == 0 or star_ii == 5:
+            col = "vb"
+        else:
+            col = "^k"
+        
+        plt.plot(xxHere, yyHere, col, ms = 8)
+    
+    plt.legend(loc=0, ncol = 2, prop = {'size': 12})
     plt.show()
 
 if __name__ == "__main__":
