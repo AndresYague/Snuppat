@@ -24,7 +24,7 @@ def main():
     
     # Issue warning
     try:
-        raw_input(warn)
+        input(warn)
     except KeyboardInterrupt:
         return 1
     except:
@@ -62,8 +62,7 @@ def main():
     current += 1
     
     phys = os.path.join("input", "physics.dat")
-    minMaxDt = os.path.join("input", "minMaxDt.dat")
-    extracted = extract_physics(infilepath, phys, minMaxDt, ini_model)
+    extracted = extract_physics(infilepath, phys, ini_model)
     
     if not extracted:
         print("Unable to extract physics models")
@@ -129,7 +128,7 @@ def extract_chemistry(infilepath, chemst, ini_model):
     
     return True
 
-def extract_physics(infilepath, phys, minMaxDt, ini_model):
+def extract_physics(infilepath, phys, ini_model):
     '''Extracts the physics from ini_model to the end.
     If ini_model is None, then it will extract from the first model'''
     
@@ -148,7 +147,6 @@ def extract_physics(infilepath, phys, minMaxDt, ini_model):
     prctg = 0
     
     oldAge = None
-    allDt = []
     
     mass_indx = 1
     found = True if ini_model is None else False
@@ -199,8 +197,6 @@ def extract_physics(infilepath, phys, minMaxDt, ini_model):
                                 # Calculate dt
                                 if oldAge is not None:
                                     currDt = 10**float(age) - oldAge
-                                    allDt.append(currDt)
-                                    
                                     oldAge += currDt
                                 else:
                                     oldAge = 10**float(age)
@@ -248,21 +244,6 @@ def extract_physics(infilepath, phys, minMaxDt, ini_model):
                     lines = list()
                     comments = list()
                     nlines = 0
-    
-    # Calculate min and max dt
-    
-    # Sort dt list
-    allDt.sort()
-    
-    # Get average of first quarter:
-    minDt = average(allDt[:len(allDt)/4])
-    
-    # Get average of last quarter:
-    maxDt = average(allDt[int(len(allDt)*3./4.):])
-    
-    # Put min and max dt
-    with open(minMaxDt, "w") as fwrite:
-        fwrite.write("{} {}".format(minDt, maxDt))
     
     return True
 

@@ -70,7 +70,7 @@ def main():
     
     # Issue warning
     try:
-        raw_input(warn)
+        input(warn)
     except KeyboardInterrupt:
         return 1
     except:

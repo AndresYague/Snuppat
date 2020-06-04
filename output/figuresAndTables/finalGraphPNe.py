@@ -137,7 +137,7 @@ def main():
     
     # Now create the final values
     finalValues = []
-    zList = solarValues.keys()
+    zList = [x for x in solarValues.keys()]
     zList.sort(); hFe = []
     for ii in range(len(agbValues)):
         dens = agbValues[ii]
@@ -281,6 +281,9 @@ def main():
         
         plt.plot(xxHere, yyHere, "k" + mrk[star_ii], lw = 2, ms = 8)
     
+    plt.minorticks_on()
+    plt.tick_params(right = True, top = True)
+    plt.tick_params(which = "minor", right = True, top = True)
     plt.legend(loc=0, ncol = 2, prop = {'size': 12})
     plt.show()
 

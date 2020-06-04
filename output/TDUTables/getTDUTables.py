@@ -293,7 +293,8 @@ def main():
     '''Main program'''
     
     if len(sys.argv) < 2:
-        print("Usage: python {} <SnuppatOutputBIN>".format(sys.argv[0]))
+        print("Usage: python {} <SnuppatOutputBIN>".format(sys.argv[0]), end = " ")
+        print("[mass threshold [age threshold]]")
         return 1
     
     # Get mass threshold
@@ -306,7 +307,7 @@ def main():
     if len(sys.argv) > 3:
         ageThreshold = float(sys.argv[3])
     else:
-        ageThreshold = 4e4
+        ageThreshold = 1e3
     
     species = "../../data/species.dat"
     speciesDict = getSpeciesDict(species, 4)

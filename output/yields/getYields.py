@@ -1,12 +1,76 @@
-import sys, os
+import sys, os, struct
+
+class readBinaryModels(object):
+    '''Class for reading binary models'''
+    
+    def __init__(self, fil):
+        '''Initialize'''
+        
+        self.fread = open(fil, "rb")
+        self.head = None
+        self.model = None
+    
+    def close(self):
+        '''Close file'''
+        
+        self.fread.close()
+    
+    def __readHeader(self):
+        '''Return header'''
+        
+        head = []
+        byte = self.fread.read(4)
+        if len(byte) == 0:
+            return None
+        
+        head.append(*struct.unpack('i', byte))
+        head.append(*struct.unpack('d', self.fread.read(8)))
+        head.append(*struct.unpack('d', self.fread.read(8)))
+        head.append(*struct.unpack('i', self.fread.read(4)))
+        head.append(*struct.unpack('i', self.fread.read(4)))
+        
+        return head
+    
+    def nextModel(self):
+        '''Calculate next model, unpacked'''
+        
+        # Read header
+        self.head = self.__readHeader()
+        if self.head is None:
+            return False
+        
+        self.model = [self.head]
+        for ii in range(self.head[3]):
+            s = []
+            for jj in range(self.head[4]):
+                s.append(*struct.unpack('d', self.fread.read(8)))
+            
+            self.model.append(s)
+        
+        return True
+    
+    def readOnlyHeader(self):
+        '''Look only for the header and skip the rest'''
+        
+        # Read header
+        self.head = self.__readHeader()
+        if head is None:
+            return False
+        
+        # Skip file
+        for ii in range(head[3]):
+            for jj in range(head[4]):
+                self.fread.read(8)
+        
+        return True
 
 def getMassFracs(abunds, specs):
     '''Multiply number fraction abundances by mass for mass fraction'''
     
-    massFracs = {}
+    massFracs = []
     for ii in range(len(specs)):
         nam, zz, mass = specs[ii]
-        massFracs[zz] = massFracs.get(zz, 0) + abunds[ii]*mass
+        massFracs.append(abunds[ii]*mass)
     
     return massFracs
 
@@ -14,17 +78,18 @@ def main():
     '''Program to extract yields from the SNUPPAT models'''
     
     # Check input
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print("Usage: python {}".format(sys.argv[0]),)
-        print("<input file> [mode = isotopes]")
+        print("<input file> <net yields? (y/n)>")
         return 1
         
     else:
         outFil = sys.argv[1]
+        netYields = True if sys.argv[2] == "y" else False
     
-    mode = "elements" # Default mode
-    if len(sys.argv) >= 3:
-        mode = sys.argv[2]
+    mode = "isotopes" # Default mode
+    if len(sys.argv) >= 4:
+        mode = sys.argv[3]
         if mode != "isotopes" and mode != "elements":
             print('The mode must be either "isotopes" or "elements"')
             return 1
@@ -42,101 +107,80 @@ def main():
             if zz == 1:
                 nam = "h"
             
-            if mode == "elements":
-                idNam[zz] = nam
-                idZZ[zz] = zz
-                specs[ii] = (nam, zz, mass)
-                
-            elif mode == "isotopes":
-                nam += lnlst[0]
-                idNam[ii] = nam
-                idZZ[ii] = zz
-                specs[ii] = (nam, ii, mass)
+            nam += lnlst[0]
+            idNam[ii] = nam
+            idZZ[ii] = zz
+            specs[ii] = (nam, ii, mass)
             
             ii += 1
     
+    totYields = None
     firstAge = None; prevMass = None
-    yields = None; prevMassFrac = None
-    with open(outFil) as fread:
-        for line in fread:
-            lnlst = line.split()
-            
-            # Check first mass and age
-            if "#" in line:
-                if "Mass" in line:
-                    totMass = float(lnlst[-1])
-                    if prevMass is None:
-                        prevMass = totMass
-                    
-                    dMass = prevMass - totMass
-                    
-                elif "Age" in line:
-                    age = 10**(float(lnlst[-1]) - 3)
-                    if firstAge is None:
-                        firstAge = age
-                
-                prevLine = None
-                foundLine = False
+    prevMassFrac = None; initialAbund = None
+    fread = readBinaryModels(outFil)
+    # Read each model
+    while fread.nextModel():
+        age = 10**(fread.head[2] - 3) # Age in thousand years
+        mass = fread.head[1]          # Mass in solar masses
+        model = fread.model
+        
+        # Get abundances
+        for ii in range(1, len(model) - 1):
+            line = model[ii]
+            nextLine = model[ii + 1]
+            if (line[0] + nextLine[0])*0.5 <= 0.85:
                 continue
             
-            if foundLine:
-                continue
+            abundances = [(x + y)*0.5 for x, y in zip(line[4:], nextLine[4:])]
+            break
+        
+        # If first model, store everything and skip
+        if firstAge is None:
+            if netYields:
+                initMassFrac = getMassFracs(abundances, specs)
+            else:
+                initMassFrac = [0 for x in abundances]
             
-            # Now check each line
-            if prevLine is None:
-                prevLine = lnlst
-                continue
-            
-            # Calculate mass
-            mass = (float(lnlst[0]) + float(prevLine[0]))*0.5
-            
-            if mass > 0.85:
-                # Get chemistry
-                lst1 = [float(x) for x in lnlst]
-                lst2 = [float(x) for x in prevLine]
-                abunds = [(x + y)*0.5 for x, y in zip(lst1[4:], lst2[4:])]
+            prevMassFrac = [x - y for x, y in
+                    zip(getMassFracs(abundances, specs), initMassFrac)]
+            firstAge = age
+            prevMass = mass
+            continue
+        
+        # Now calculate yields
+        if totYields is None:
+            totYields = [0 for x in abundances]
+        
+        # Integrate with trapezoidal rule
+        massFracs = getMassFracs(abundances, specs)
+        massFracs = [x - y for x, y in zip(massFracs, initMassFrac)]
+        
+        # Apply trapezoidal rule
+        dMass = prevMass - mass
+        yields = [(x + y)*0.5*dMass for x, y in zip(massFracs, prevMassFrac)]
+        totYields = [x + y for x, y in zip(yields, totYields)]
+        
+        # Update all
+        prevMassFrac = massFracs
+        prevMass = mass
+        
+        # Correct age
+        age -= firstAge
+        
+        # Print results
+        if age > 0:
+            print("# Mass: {} MSun. Time: {} ky".format(mass, age))
+            print("Species, Current yield, Accumulated yields")
+            for ii in range(len(idNam)):
+                if mode == "elements":
+                    formStr = "{:2} {:2} {:11.4E} {:11.4E}"
+                elif mode == "isotopes":
+                    formStr = "{:5} {:2} {:11.4E} {:11.4E}"
                 
-                # Calculate mass fractions from abundances
-                massFracDic = getMassFracs(abunds, specs)
-                massFracs = massFracDic.values()
-                
-                # Calculate yields
-                if yields is None:
-                    # Initialize yields array and store initial
-                    # mass fraction
-                    yields = [0 for x in massFracs]
-                    initMassFrac = massFracs
-                    prevMassFrac = [0 for x in massFracs]
-                else:
-                    # Do the yields integral
-                    massFracs = [x - y for x, y in zip(massFracs, initMassFrac)]
-                    
-                    # Apply trapezoidal rule
-                    if prevMassFrac is not None:
-                        tempFrac = [x + y for x, y in zip(massFracs, prevMassFrac)]
-                        yields = [x + y*dMass*0.5 for x, y in zip(yields, tempFrac)]
-                    
-                    prevMassFrac = massFracs
-                
-                foundLine = True
-                prevMass = totMass
+                s = formStr.format(idNam[ii], idZZ[ii], yields[ii], totYields[ii])
+                print(s)
             
-            # Print results
-            if foundLine:
-                dt = age - firstAge
-                if dt > 0:
-                    print("# Mass: {} MSun. Time: {} ky".format(totMass, dt))
-                    for ii in range(len(idNam)):
-                        if mode == "elements":
-                            formStr = "{:2} {:2} {:11.4E}"
-                        elif mode == "isotopes":
-                            formStr = "{:5} {:2} {:11.4E}"
-                        
-                        print(formStr.format(idNam[ii], idZZ[ii], yields[ii]))
-                    
-                    print()
-            
-            prevLine = lnlst
+            print()
 
 if __name__ == "__main__":
     main()

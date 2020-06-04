@@ -16,6 +16,10 @@ def main():
     # Plot all the profiles
     ii = 0; maxSaveMass = 0
     for arch in sys.argv[1:]:
+        # Mark where we are
+        print("# Reading {}".format(arch))
+        label = arch
+        
         # Read event
         fread = open(arch, "r")
         
@@ -24,7 +28,10 @@ def main():
         ax = fig.add_subplot(subplotNum, 1, ii)
         
         if ii == 1:
-            ax.text(0.0020, 0.02, "4M$_\odot$", fontsize = 16)
+            ax.text(0.65, 0.65, "3M$_\odot$", fontsize = 16,
+                    horizontalalignment = "center",
+                    verticalalignment = "center",
+                    transform = ax.transAxes)
         
         lastMass = 0
         maxProfileHeight = 0
@@ -33,14 +40,15 @@ def main():
         c13Count = 0; c13TotMass = 0
         while True:
             line = fread.readline()
-            label = arch
             
-            if "#" not in line and len(line) > 0:
-                lnlst = line.split()
-                if len(lnlst) == 0:
-                    continue
-                
-                mass.append(float(lnlst[0]))
+            # Exit if last line
+            if len(line) == 0:
+                break
+            
+            #if "#" not in line and len(line) > 0:
+            lnlst = line.split()
+            if "#" not in line and len(lnlst) > 0:
+                mass.append(float(lnlst[0])*1e4)
                 profile.append(float(lnlst[1]))
                 
             elif len(mass) > 0:
@@ -65,10 +73,6 @@ def main():
                 saveMass = mass; mass = []
                 maxProfileHeight = 0
                 maxProfile = []; profile = []
-                
-                # Exit if last line
-                if len(line) == 0:
-                    break
                 mass = []; profile = []
         
         if max(saveMass) > maxSaveMass:
@@ -97,13 +101,18 @@ def main():
         # Print the average size
         if c13Count > 0:
             avgMass = c13TotMass/c13Count
-            print("# Average pocket mass in {} = {}".format(arch, avgMass))
+            print("# Average pocket mass in {} = {:.2E}".format(arch, avgMass*1e-4))
             print("")
     
     # Fix axes
     ii = 0
     for axi in fig.axes:
-        axi.set_xlim([0, maxSaveMass*1.1])
+        #axi.set_xlim([0, maxSaveMass*1.1])
+        axi.set_xlim([0, 49])
+        axi.set_ylim([0, 0.045])
+        axi.minorticks_on()
+        axi.tick_params(right = True, top = True)
+        axi.tick_params(which = "minor", right = True, top = True)
         
         # Set central ylabel
         if ii == 1:
@@ -112,7 +121,7 @@ def main():
         ii += 1
     
     fig.subplots_adjust(hspace = 0)
-    ax.set_xlabel("Mass (M$_\odot$)", size = 12)
+    ax.set_xlabel("Mass ($10^{{-4}}$ M$_\odot$)", size = 12)
     
     plt.show()
 

@@ -101,7 +101,6 @@ def main():
             # Get current age
             head = binObj.model[0]
             thisAge = 10**(head[2] - 3) # in ky
-            break
             
             # Store first age or check if bigger
             if firstAge is None:

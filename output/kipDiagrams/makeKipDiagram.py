@@ -243,6 +243,9 @@ def main():
     
     # Define carbon masses
     cMasses = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
+    cStyles = ("-", "--", ":", "-", "--", ":")
+    cMasses = (0.2, 0.3, 0.35, 0.37, 0.40)
+    cStyles = ("-", "--", ":", "-", "--")
     
     firstAge = None
     ageArr = []; modNumArr = []; convRegArr = []
@@ -278,7 +281,7 @@ def main():
     ax = fig.add_subplot(111)
     plotConve(ax, xxArr, convRegArr)
     for ii in range(lenCarbon):
-        ax.plot(xxArr, carbonMassArr[ii], lw = 2,
+        ax.plot(xxArr, carbonMassArr[ii], lw = 2,linestyle = cStyles[ii],
                 label = "XC12 = {}".format(cMasses[ii]))
     ax.plot(xxArr, envMassArr, lw = 2, label = "H exhausted core")
     

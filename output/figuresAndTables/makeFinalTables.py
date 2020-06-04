@@ -10,11 +10,11 @@ def printTable(storeNamVal):
     '''Print table in order'''
     
     nCol = 3
-    keys = storeNamVal.keys(); keys.sort()
+    keys = [x for x in storeNamVal.keys()]; keys.sort()
     nEls = len(keys); div = nEls/nCol
     
     # Get number of lines for tables
-    nlines = div if nEls % nCol == 0 else div + 1
+    nlines = div if nEls % nCol == 0 else int(div) + 1
     
     firstOfSecond = None
     for ii in range(nEls):

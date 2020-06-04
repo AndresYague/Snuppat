@@ -114,7 +114,7 @@ def main():
             dic[key] = dic.get(key, 0) + dens[jj]*atomicMass[jj]
             
             # Print the number fraction
-            print(dens[jj])
+            print(jj + 1, dens[jj])
         
         agbValues.append(dic)
         print("")
@@ -228,15 +228,23 @@ def main():
                 yVal = finalValues[-1][ii]
                 break
         
-        plt.text(namAtm[name] - 0.5, yVal*1.01, name, size = 14)
+        plt.text(namAtm[name] - 0.5, yVal*1.01, name, size = 12)
         
         if name in rNamAtm:
             plt.plot(namAtm[name], yVal, "ro")
         else:
             plt.plot(namAtm[name], yVal, "ko")
     
+    # Put all the ticks
+    plt.minorticks_on()
+    plt.tick_params(right = True, top = True)
+    plt.tick_params(which = "minor", right = True, top = True)
+    
+    # Set y range
+    plt.ylim([-0.3, 1.84])
+    
     plt.legend(loc=0, ncol = 2)
-    plt.text(30, 1.1, "3M$_\odot$", fontsize = 16)
+    #plt.text(30, 1.5, "4M$_\odot$", fontsize = 16)
     plt.show()
 
 if __name__ == "__main__":

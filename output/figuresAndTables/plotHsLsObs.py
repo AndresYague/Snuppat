@@ -66,6 +66,9 @@ def main():
         plt.errorbar(sFe, hsLs, fmt = col, xerr = sErr, yerr = hsLsErr)
         star_ii += 1
     
+    plt.minorticks_on()
+    plt.tick_params(right = True, top = True)
+    plt.tick_params(which = "minor", right = True, top = True)
     plt.xlabel("[s/Fe]", size = 12)
     plt.ylabel("[hs/ls]", size = 12)
     plt.legend(loc = 0, ncol = 2, prop = {"size": 12})
