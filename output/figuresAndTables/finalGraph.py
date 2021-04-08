@@ -241,10 +241,10 @@ def main():
     plt.tick_params(which = "minor", right = True, top = True)
     
     # Set y range
-    plt.ylim([-0.3, 1.84])
+    plt.ylim([-0.25, 1.75])
     
     plt.legend(loc=0, ncol = 2)
-    #plt.text(30, 1.5, "4M$_\odot$", fontsize = 16)
+    plt.text(30, 1.5, "4M$_\odot$", fontsize = 16)
     plt.show()
 
 if __name__ == "__main__":

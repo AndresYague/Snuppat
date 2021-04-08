@@ -1,4 +1,5 @@
 import struct, sys
+import numpy as np
 
 class readBinaryModels(object):
     '''Class for reading binary models'''
@@ -68,22 +69,22 @@ class readBinaryModels(object):
 def getSpeciesDict(species, corrPos = 0):
     '''Return a dictionary of species names and positions'''
     
-    ii = 0; spD = {}
+    ii = 0; speciesDict = {}
     with open(species, "r") as fread:
         for line in fread:
-            wgt, nam = line.split()[0:2]
-            nam = "{}{}".format(nam, wgt)
+            weight, name = line.split()[0:2]
+            name = "{}{}".format(name, weight)
             
-            spD[nam] = ii + corrPos
+            speciesDict[name] = (ii + corrPos, int(weight))
             ii += 1
     
-    return spD
+    return speciesDict
 
 def getCoreMass(model, speciesDict):
     '''Return the core mass of this model, defined
     as the point where H < 0.1*maxH'''
     
-    hindx = speciesDict["p1"]
+    hindx = speciesDict["p1"][0]
     mass = []; hydro = []; temp = []
     h2 = None; m2 = None; t2 = None
     for ii in range(model[0][3]):
@@ -113,7 +114,7 @@ def getBCEMass(model, speciesDict):
     '''Return the BCE mass of this model, defined
     as the last convective poin where H ~ maxH'''
     
-    hindx = speciesDict["p1"]
+    hindx = speciesDict["p1"][0]
     mass = []; hydro = []; temp = []; radiat = []
     h2 = None; m2 = None; t2 = None; rad2 = None
     for ii in range(model[0][3]):
@@ -159,50 +160,76 @@ def getMaximumTemperature(model):
     
     return max(temp)
 
-def getIntershellC12O16(model, coreMass, speciesDict):
-    '''Return the intershell c12 and o16'''
+def getIntershellComposition(model, coreMass, wantedElements, speciesDict):
+    '''Return the intershell wantedElements composition'''
     
-    # Store values
-    c12Indx = speciesDict["c12"]
-    o16Indx = speciesDict["o16"]
-    he4Indx = speciesDict["he4"]
-    mass = []; c12 = []; o16 = []; he4 = []
-    c122 = None; he42 = None; m2 = None
+    # Make sure he4 and c12 are in the list, store their index
+    cpyElements = wantedElements[:]
+    if "he4" not in cpyElements:
+        cpyElements.append("he4")
+    if "c12" not in cpyElements:
+        cpyElements.append("c12")
+    indxHe4 = cpyElements.index("he4")
+    indxC12 = cpyElements.index("c12")
+    
+    # Store indices and weights
+    elemIndxWeight = []
+    for element in cpyElements:
+        elemIndxWeight.append(speciesDict[element])
+    
+    # Prepare for reading
+    mass = []; m2 = None
+    composition = [[] for x in cpyElements]
     for ii in range(model[0][3]):
-        c121 = model[ii + 1][c12Indx]*12
-        o161 = model[ii + 1][o16Indx]*16
-        he41 = model[ii + 1][he4Indx]*4
+        # Store mass
         m1 = model[ii + 1][0]
-        if c122 is None:
-            c122 = c121; o162 = o161; he42 = he41; m2 = m1
-            continue
         
-        c12.append((c121 + c122)*0.5)
-        o16.append((o161 + o162)*0.5)
-        he4.append((he41 + he42)*0.5)
+        # Store elements
+        for jj in range(len(elemIndxWeight)):
+            val = model[ii + 1][elemIndxWeight[jj][0]]
+            val *= elemIndxWeight[jj][1]
+            composition[jj].append(val)
+            
+            # If not in first case, go to previous values and correct
+            if ii > 0:
+                composition[jj][ii - 1] = (composition[jj][ii - 1] + val)*0.5
+        
+        # If in first case, skip
+        if ii == 0:
+            m2 = m1
+            continue 
+       
         mass.append((m1 + m2)*0.5)
-        c122 = c121; o162 = o161; m2 = m1; he42 = he41
+        m2 = m1
+    
+    # After the last step, we have to drop the last value in the composition list
+    for elem in composition:
+        elem.pop()
     
     # Now look for intershell value
-    maxHe = max(he4); avgC12 = 0; avgO16 = 0; totMass = 0
-    for ii in range(len(c12)):
-        if abs(he4[ii] - maxHe) < 0.4*maxHe:
-            if he4[ii] > c12[ii] and c12[ii] > 0.1:
-                avgC12 += c12[ii]*mass[ii]
-                avgO16 += o16[ii]*mass[ii]
+    totMass = 0
+    maxHe = max(composition[indxHe4])
+    averageComposition = [0 for x in composition]
+    for ii in range(len(mass)):
+        he4 = composition[indxHe4][ii]
+        c12 = composition[indxC12][ii]
+        if abs(he4 - maxHe) < 0.4*maxHe:
+            if he4 > c12 and c12 > 0.1:
+                for jj in range(len(composition)):
+                    averageComposition[jj] += composition[jj][ii]*mass[ii]
                 totMass += mass[ii]
     
     try:
-        avgC12 /= totMass
-        avgO16 /= totMass
+        for ii in range(len(averageComposition)):
+            averageComposition[ii] /= totMass
     except ZeroDivisionError:
         pass
     except:
         raise
     
-    return avgC12, avgO16
+    return averageComposition
 
-def getTDUMass(binObj, speciesDict, massTh, ageThreshold):
+def getTDUMass(binObj, speciesDict, wantedElements, massTh, ageThreshold):
     '''Finds next core masses'''
     
     # For storage
@@ -214,8 +241,7 @@ def getTDUMass(binObj, speciesDict, massTh, ageThreshold):
     maxTDUTemp = 0
     maxTempBCE = 0
     maxTempHyd = 0
-    maxC12 = 0
-    maxO16 = 0
+    maxComposition = [0 for elem in wantedElements]
     prevModNum = 0
     
     # Read model
@@ -252,18 +278,18 @@ def getTDUMass(binObj, speciesDict, massTh, ageThreshold):
         elif foundTDU and (currAge - tduAge) > ageThreshold:
             inTDU = False
         
-        # Get intershell c12 and o16
-        intC12, intO16 = getIntershellC12O16(model, coreMass, speciesDict)
-        if intC12 is None:
-            raise Exception("C12 value not found!")
-        if intO16 is None:
-            raise Exception("O16 value not found!")
+        # Get intershell composition
+        intComposition = getIntershellComposition(model, coreMass,
+                                                  wantedElements, speciesDict)
+        if None in intComposition:
+            for ii in range(len(wantedElements)):
+                if intComposition[ii] is None:
+                    print("{} value not found!".format(wantedElements[ii]))
+            
+            raise Exception()
         
-        # Get maximum intershell c12 and o16
-        if intC12 > maxC12:
-            maxC12 = intC12
-        if intO16 > maxO16:
-            maxO16 = intO16
+        # Get maximum intershell cmposition
+        maxComposition = np.maximum(maxComposition, intComposition)
         
         # Get maximum temperatures
         if tempHyd > maxTempHyd:
@@ -286,7 +312,7 @@ def getTDUMass(binObj, speciesDict, massTh, ageThreshold):
         prevModNum = model[0][0]
     
     val = (maxCoreMass, minCoreMass, totMass, maxTDUTemp, maxTempBCE,
-            maxTempHyd, maxC12, maxO16)
+            maxTempHyd, maxComposition)
     return val
 
 def main():
@@ -309,21 +335,29 @@ def main():
     else:
         ageThreshold = 1e3
     
+    # Wanted elements
+    wantedElements = ["he4", "c12", "o16", "ne22"]
+    
     species = "../../data/species.dat"
     speciesDict = getSpeciesDict(species, 4)
     
     # Create object
     binObj = readBinaryModels(sys.argv[1])
     
-    prevMinCore = None
+    # Print header
+    s = "Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass, "
+    s += "Envelope mass, Dredged Mass"
+    for elem in wantedElements:
+        s += ", " + elem.upper()
+    s += "; Mass Threshold (Msun) = {:.2E}".format(massTh)
+    s += " Age Threshold (years) = {:.2E}".format(ageThreshold)
+    print(s)
+    
     # Look for max and min core mass
-    print("Lambda, Temperature, BCE Temperature, Hyd Temperature, Core Mass,", end = " ")
-    print("Envelope mass, Dredged Mass, C12, O16 ;", end = " ")
-    print("Mass Threshold (Msun) = {:.2E}".format(massTh), end = " ")
-    print(" Age Threshold (years) = {:.2E}".format(ageThreshold))
+    prevMinCore = None
     while True:
-        val = getTDUMass(binObj, speciesDict, massTh, ageThreshold)
-        maxCoreM, minCoreM, totMass, temp, tempBCE, tempHyd, c12, o16 = val
+        val = getTDUMass(binObj, speciesDict, wantedElements, massTh, ageThreshold)
+        maxCoreM, minCoreM, totMass, temp, tempBCE, tempHyd, composition = val
         if maxCoreM == 0 or totMass is None:
             break
         
@@ -336,8 +370,18 @@ def main():
         lambd = dredg/coreGrowth
         
         prevMinCore = minCoreM
-        print(lambd, temp, tempBCE, tempHyd, minCoreM, end = " ")
-        print(totMass - minCoreM, dredg, c12, o16)
+        
+        values = [lambd, temp, tempBCE, tempHyd, minCoreM, totMass - minCoreM,
+                  dredg]
+        for comp in composition:
+            values.append(comp)
+        
+        for ii in range(len(values)):
+            if ii == 0:
+                s = "{:.2E}".format(values[ii])
+            else:
+                s += " {:.2E}".format(values[ii])
+        print(s)
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ def main():
         ax = fig.add_subplot(subplotNum, 1, ii)
         
         if ii == 1:
-            ax.text(0.65, 0.65, "3M$_\odot$", fontsize = 16,
+            ax.text(0.65, 0.65, "5M$_\odot$", fontsize = 16,
                     horizontalalignment = "center",
                     verticalalignment = "center",
                     transform = ax.transAxes)
@@ -38,6 +38,7 @@ def main():
         mass = []; profile = []
         maxProfile = []
         c13Count = 0; c13TotMass = 0
+        first = True
         while True:
             line = fread.readline()
             
@@ -63,8 +64,12 @@ def main():
                 mass = [x - mass0 + lastMass for x in mass]
                 
                 # Plot
-                ax.plot(mass, profile, colors[ii - 1], lw = 2,
-                        label = labels[ii - 1])
+                if first:
+                    ax.plot(mass, profile, colors[ii - 1], lw = 2,
+                            label = labels[ii - 1])
+                    first = False
+                else:
+                    ax.plot(mass, profile, colors[ii - 1], lw = 2)
                 
                 # Modify lastMass
                 lastMass += mass[-1] - mass[0]
@@ -88,14 +93,6 @@ def main():
         ax.set_ylim([0, ax.get_ylim()[1]])
         ax.legend(prop = {"size": 12})
         
-        # Prune the yaxis except for last plot
-        yLim = ax.get_ylim()
-        yticks = list(ax.get_yticks())
-        yticks = [x for x in yticks if x >= yLim[0] and x <= yLim[1]*1.1]
-        if ii < len(sys.argv[1:]):
-            yticks.pop(0)
-            ax.set_yticks(yticks)
-        
         fread.close()
         
         # Print the average size
@@ -108,8 +105,8 @@ def main():
     ii = 0
     for axi in fig.axes:
         #axi.set_xlim([0, maxSaveMass*1.1])
-        axi.set_xlim([0, 49])
-        axi.set_ylim([0, 0.045])
+        axi.set_xlim([0, 40])
+        axi.set_ylim([0, 0.0395])
         axi.minorticks_on()
         axi.tick_params(right = True, top = True)
         axi.tick_params(which = "minor", right = True, top = True)
@@ -123,6 +120,7 @@ def main():
     fig.subplots_adjust(hspace = 0)
     ax.set_xlabel("Mass ($10^{{-4}}$ M$_\odot$)", size = 12)
     
+    plt.savefig("FigC13Pockets.pdf", bbox_inches = "tight")
     plt.show()
 
 if __name__ == "__main__":

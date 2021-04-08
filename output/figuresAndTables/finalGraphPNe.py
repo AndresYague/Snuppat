@@ -242,10 +242,11 @@ def main():
         
         plt.text(namAtm[name] - 0.5, yVal*1.01, name, size = 14)
         
-        if name in rNamAtm:
-            plt.plot(namAtm[name], yVal, "ro")
-        else:
-            plt.plot(namAtm[name], yVal, "ko")
+        # Dots for the plot
+        #if name in rNamAtm:
+            #plt.plot(namAtm[name], yVal, "ro")
+        #else:
+            #plt.plot(namAtm[name], yVal, "ko")
     
     # Observations values
     # (NGC3918, NGC7027)
@@ -262,6 +263,7 @@ def main():
     
     gray = (0.75, 0.75, 0.75)
     mrk = ["^", "s"]
+    fillstyle = ["none", "full"]
     for star_ii in range(len(PNe)):
         xxHere = []; yyHere = []; errHere = []
         for ii in range(len(xxObs)):
@@ -279,7 +281,8 @@ def main():
                 yyHere.append(PNe[star_ii][ii])
                 errHere.append(yyErrs[star_ii][ii])
         
-        plt.plot(xxHere, yyHere, "k" + mrk[star_ii], lw = 2, ms = 8)
+        plt.plot(xxHere, yyHere, "k" + mrk[star_ii],
+                fillstyle = fillstyle[star_ii], lw = 2, ms = 8)
     
     plt.minorticks_on()
     plt.tick_params(right = True, top = True)
